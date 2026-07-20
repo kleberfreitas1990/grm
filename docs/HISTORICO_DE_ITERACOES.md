@@ -6,6 +6,50 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 003 — Versão 0.2.1 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir incompatibilidade de dependências na execução em produção no Streamlit Cloud.
+
+### Prompt sanitizado
+
+> ModuleNotFoundError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
+> Traceback:
+> File "/mount/src/grm/almox\\_app.py", line 15, in \<module\>
+>     import pandas as pd
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/\*\*init\*\*.py", line 46, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/api.py", line 27, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/arrays/\*\*init\*\*.py", line 1, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/arrays/arrow/\*\*init\*\*.py", line 5, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/arrays/arrow/array.py", line 80, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/arrays/string\\_.py", line 70, in \<module\>
+> File "/home/adminuser/venv/lib/python3.14/site-packages/pandas/core/arrays/numpy\\_.py", line 37, in \<module\>
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Dependências | Relaxed da versão do pandas para aceitar qualquer versão 2.3.3 ou superior, compatível com Python 3.14. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `requirements.txt` | Ajuste da faixa de versão do pandas. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada pela ausência de `ModuleNotFoundError` ao rodar no Streamlit Cloud, que utiliza Python 3.14.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.2.1`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 002 — Versão 0.2.0 — 20 de julho de 2026
 
 ### Objetivo

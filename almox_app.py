@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 EMPRESAS = [
     "Selecione uma empresa",
     "214 - Ankara - tunas, Paraná",
