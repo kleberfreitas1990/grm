@@ -20,7 +20,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.5.0"
+APP_VERSION = "0.6.0"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -85,8 +85,20 @@ def configurar_pagina() -> None:
     st.markdown(
         """
         <style>
+            /* Estilos Globais e Responsivos */
             .stApp { background: #F7F9FC; }
             [data-testid="stHeader"] { background: rgba(0, 0, 0, 0); }
+
+            /* Ajuste para Mobile (Solicitantes) */
+            @media (max-width: 768px) {
+                .grm-hero { padding: 1.2rem 1rem; margin-bottom: 1rem; }
+                .grm-hero h1 { font-size: 1.4rem; }
+                .metric-card { min-height: auto; padding: 0.8rem; }
+                .metric-card .value { font-size: 1.4rem; }
+                .flow-step { min-height: auto; padding: 0.8rem; margin-bottom: 10px; }
+            }
+
+            /* Estilos para Desktop e Tablets */
             .grm-hero {
                 border-radius: 18px;
                 padding: 1.8rem 2rem;
@@ -97,6 +109,7 @@ def configurar_pagina() -> None:
             }
             .grm-hero h1 { margin: 0; font-size: 2rem; }
             .grm-hero p { margin: .45rem 0 0; opacity: .92; font-size: 1rem; }
+
             .metric-card {
                 background: white;
                 border: 1px solid #E2E8F0;
@@ -108,6 +121,7 @@ def configurar_pagina() -> None:
             .metric-card .label { color: #64748B; font-size: .82rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
             .metric-card .value { color: #0F172A; font-size: 1.8rem; font-weight: 800; margin-top: .15rem; }
             .metric-card .caption { color: #64748B; font-size: .82rem; }
+
             .status-chip {
                 border-radius: 999px;
                 color: white;
@@ -118,6 +132,7 @@ def configurar_pagina() -> None:
                 margin: .1rem 0;
                 padding: .35rem .7rem;
             }
+
             .flow-step {
                 background: #FFFFFF;
                 border: 1px solid #DCE5EF;
@@ -142,9 +157,23 @@ def configurar_pagina() -> None:
             .flow-step strong { display: block; margin: .42rem 0 .2rem; }
             .flow-step span { color: #64748B; font-size: .78rem; }
             .small-note { color: #64748B; font-size: .83rem; }
+
+            /* Sidebar Desktop */
             div[data-testid="stSidebar"] { background: #0F2538; }
             div[data-testid="stSidebar"] * { color: #F8FAFC; }
             div[data-testid="stSidebar"] .stCaption { color: #CBD5E1 !important; }
+
+            /* Melhoria nos Formulários Mobile */
+            @media (max-width: 768px) {
+                [data-testid="stForm"] > div {
+                    flex-direction: column !important;
+                }
+                [data-testid="stForm"] > div > div {
+                    width: 100% !important;
+                    padding: 0 !important;
+                    margin-bottom: 10px !important;
+                }
+            }
         </style>
         """,
         unsafe_allow_html=True,

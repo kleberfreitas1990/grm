@@ -2,6 +2,14 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.6.0] — 2026-07-20
+
+### Alterado
+
+- Layout da aplicação agora é responsivo. Formulários e cards se ajustam melhor para uso em celulares (solicitantes) e mantém o design otimizado para desktops (atendentes).
+
+[0.6.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.6.0
+
 ## [0.5.0] — 2026-07-20
 
 ### Adicionado

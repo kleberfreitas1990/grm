@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 007 — Versão 0.6.0 — 20 de julho de 2026
+
+### Objetivo
+
+Melhorar o layout da aplicação para atender melhor ao uso em celulares (solicitantes) e desktops (atendentes), tornando-o mais responsivo e limpo.
+
+### Prompt sanitizado
+
+> quem irá solicitar fará pelo celular e quem vai acompanhar e mudar os status sera pelo pc deixa o layout legal ok pq assim fica feio
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Interface | Implementação de CSS responsivo (`@media (max-width: 768px)`) para ajustar fontes, espaçamentos e tamanhos de cards em telas pequenas. |
+| Formulários | Otimização dos formulários para ficarem em coluna única (empilhados) no mobile, evitando quebras visuais. |
+| Versionamento | Atualização da versão da aplicação para `0.6.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Adição de media queries e ajustes de CSS no `st.markdown` da função `configurar_pagina`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser testada em dispositivos móveis para garantir que os formulários estão bem alinhados e os textos legíveis, e em desktop para assegurar que a estética original foi mantida.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.6.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 006 — Versão 0.5.0 — 20 de julho de 2026
 
 ### Objetivo
