@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.9.3"
+APP_VERSION = "0.9.4"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -308,14 +308,16 @@ def pagina_nova_solicitacao_simplificada() -> None:
                 item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
 
         # Botão de adicionar material fica logo abaixo do último material
-        if st.button("Adicionar outro material"):
-            st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
-            st.rerun()
+        adicionar = st.form_submit_button("Adicionar outro material")
 
         st.write("---")
         observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")
 
         gravar = st.form_submit_button("ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
+
+    if adicionar:
+        st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
+        st.rerun()
 
     if gravar:
         # Filtrar materiais preenchidos

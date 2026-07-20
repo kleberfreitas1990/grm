@@ -6,6 +6,41 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 017 — Versão 0.9.4 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir o erro de API do Streamlit substituindo o st.button por st.form_submit_button para adicionar materiais.
+
+### Prompt sanitizado
+
+> streamlit.errors.StreamlitAPIException: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Bug Fix | Substituição do botão `st.button("Adicionar outro material")` por `st.form_submit_button("Adicionar outro material")` para evitar o erro de API do Streamlit, já que botões comuns não são permitidos dentro de formulários. |
+| Versionamento | Atualização da versão da aplicação para `0.9.4`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Correção da função `pagina_nova_solicitacao_simplificada()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a aplicação como "SOLICITANTE" para garantir que o botão de adicionar material funciona corretamente sem gerar erros.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.9.4`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 016 — Versão 0.9.3 — 20 de julho de 2026
 
 ### Objetivo

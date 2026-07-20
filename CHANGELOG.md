@@ -2,6 +2,14 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.9.4] — 2026-07-20
+
+### Corrigido
+
+- Substituído o botão "Adicionar outro material" por `st.form_submit_button` para corrigir erro de API do Streamlit.
+
+[0.9.4]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.9.4
+
 ## [0.9.3] — 2026-07-20
 
 ### Modificado
