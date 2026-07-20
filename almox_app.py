@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.3.0"
 EMPRESAS = [
     "Selecione uma empresa",
     "214 - Ankara - tunas, Paraná",
@@ -525,25 +525,10 @@ def pagina_compras() -> None:
         st.rerun()
 
 
-def renderizar_barra_lateral() -> None:
-    """Exibe contexto operacional e limites da versão no menu lateral."""
-    with st.sidebar:
-        st.markdown("## GRM")
-        st.caption("Gestão de Requisições de Materiais")
-        st.divider()
-        st.markdown("**Fluxo da versão 0.1.0**")
-        st.caption("Solicitante → Atendimento → Almoxarifado ou Compras → Acompanhamento")
-        st.divider()
-        st.markdown("**Ambiente de demonstração**")
-        st.caption("As solicitações são mantidas apenas durante esta sessão do navegador. A integração com banco de dados e autenticação corporativa deve ser criada antes do uso produtivo.")
-        st.divider()
-        st.caption(f"Versão da aplicação: {APP_VERSION}")
-
 
 def main() -> None:
     configurar_pagina()
     inicializar_estado()
-    renderizar_barra_lateral()
     renderizar_cabecalho()
     renderizar_fluxo()
 

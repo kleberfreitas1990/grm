@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 004 — Versão 0.3.0 — 20 de julho de 2026
+
+### Objetivo
+
+Remover a barra lateral da aplicação conforme solicitado.
+
+### Prompt sanitizado
+
+> essa lateral nao precisa ok
+> *(imagem da barra lateral mostrando GRM, Fluxo da versão 0.1.0, Ambiente de demonstração e Versão da aplicação: 0.2.1)*
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Interface | Remoção da função `renderizar_barra_lateral` e sua chamada em `main()`. |
+| Versionamento | Atualização da versão da aplicação para `0.3.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Remoção da barra lateral e atualização de versão. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada visualmente para garantir que a barra lateral foi removida com sucesso e o layout principal não foi comprometido.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.3.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 003 — Versão 0.2.1 — 20 de julho de 2026
 
 ### Objetivo
