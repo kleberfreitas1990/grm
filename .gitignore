@@ -1,0 +1,26 @@
+# Arquivos de ambiente e credenciais
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Ambientes e artefatos Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Dados e artefatos locais
+*.db
+*.sqlite
+*.sqlite3
+.streamlit/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Sistema operacional e editores
+.DS_Store
+.vscode/
+.idea/
