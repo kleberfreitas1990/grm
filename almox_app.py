@@ -16,13 +16,22 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 EMPRESAS = [
     "Selecione uma empresa",
-    "Empresa Matriz",
-    "Unidade Industrial",
-    "Unidade Comercial",
-    "Filial Regional",
+    "214 - Ankara - tunas, Paraná",
+    "215 - Dover - Castro, Paraná",
+    "216 - Brazilian black - São Rafael, ES",
+    "217 - Dallas - Itaperuna, ES",
+    "218 - Azurite - Araçuaí, MG",
+    "219 - Valhalla - Governador Valadares, MG",
+    "220 - Magma - São Geraldo baixio, MG",
+    "221 - Polaris- livramento, Bahia",
+    "222 - Excalibur - rio do Pires, Bahia",
+    "223 - Azul Macaúbas - Boquira, Bahia",
+    "224 - Velvet - livramento, Bahia",
+    "225 - Jade - Jaguarari, Bahia",
+    "226 - Nacarado/ Sky pearl/ Montebello - Massapê, CE",
 ]
 STATUS_META = {
     "Aguardando triagem": ("#F59E0B", "Solicitação registrada e aguardando atendimento."),

@@ -6,6 +6,54 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 002 — Versão 0.2.0 — 20 de julho de 2026
+
+### Objetivo
+
+Atualizar a lista de empresas disponíveis para seleção na nova solicitação de materiais.
+
+### Prompt sanitizado
+
+> Na parte das empresas precisa constar essa lista:
+> 214 - Ankara - tunas, Paraná
+> 215 - Dover - Castro, Paraná
+> 216 - Brazilian black - São Rafael, ES
+> 217 - Dallas - Itaperuna, ES
+> 218 - Azurite - Araçuaí, MG
+> 219 - Valhalla - Governador Valadares, MG
+> 220 - Magma - São Geraldo baixio, MG
+> 221 - Polaris- livramento, Bahia
+> 222 - Excalibur - rio do Pires, Bahia
+> 223 - Azul Macaúbas - Boquira, Bahia
+> 224 - Velvet - livramento, Bahia
+> 225 - Jade - Jaguarari, Bahia
+> 226 - Nacarado/ Sky pearl/ Montebello - Massapê, CE
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Cadastro | Substituição das empresas fictícias pela lista oficial fornecida. |
+| Versionamento | Atualização da versão da aplicação para `0.2.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Inclusão da nova lista de empresas. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada por compilação do código Python e inicialização do Streamlit para garantir que a nova lista é exibida corretamente.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.2.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 001 — Versão 0.1.0 — 20 de julho de 2026
 
 ### Objetivo
