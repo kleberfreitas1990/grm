@@ -6,6 +6,43 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 005 — Versão 0.4.0 — 20 de julho de 2026
+
+### Objetivo
+
+Implementar o envio de notificações por e-mail para cada ação realizada no painel do sistema.
+
+### Prompt sanitizado
+
+> cada ação no painel por parte do solicitante e dos atendentes precisa vir uma copia pro email pedreira.azulimperial@gramazini.com.br
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Funcionalidade | Criação da função `enviar_email_notificacao` utilizando `smtplib`. |
+| Integração | Inserção do envio de e-mail nas ações de: Nova solicitação, Encaminhamento (Triagem), Retorno do Almoxarifado e Dados de Compra. |
+| Configuração | Variáveis de ambiente `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` e `SMTP_PASSWORD` para configuração segura do servidor de e-mail. |
+| Versionamento | Atualização da versão da aplicação para `0.4.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Adição da lógica de envio de e-mail e chamadas nos pontos de ação. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada verificando se as chamadas à função `enviar_email_notificacao` estão corretamente posicionadas após as ações principais e se as importações necessárias estão presentes. A configuração do SMTP será feita via variáveis de ambiente no ambiente de produção (Streamlit Cloud).
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.4.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 004 — Versão 0.3.0 — 20 de julho de 2026
 
 ### Objetivo

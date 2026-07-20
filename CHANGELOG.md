@@ -2,6 +2,15 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.4.0] — 2026-07-20
+
+### Adicionado
+
+- Envio automático de notificações por e-mail para `pedreira.azulimperial@gramazini.com.br` em todas as ações principais do painel (Nova solicitação, Encaminhamento, Retorno do Almoxarifado e Dados de Compra).
+- Configuração via variáveis de ambiente (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`).
+
+[0.4.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.4.0
+
 ## [0.3.0] — 2026-07-20
 
 ### Removido

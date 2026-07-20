@@ -8,7 +8,11 @@ antes da integração com uma base de dados e autenticação corporativa.
 from __future__ import annotations
 
 import os
+import smtplib
+import ssl
 from datetime import date, datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from html import escape
 from typing import Any
 
@@ -16,7 +20,35 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+SMTP_USER = os.getenv("SMTP_USER")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+NOTIFICATION_EMAIL = "pedreira.azulimperial@gramazini.com.br"
+
+def enviar_email_notificacao(assunto: str, corpo: str) -> bool:
+    if not SMTP_USER or not SMTP_PASSWORD:
+        st.error("Credenciais SMTP não configuradas. O e-mail não será enviado.")
+        return False
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SMTP_USER
+        msg['To'] = NOTIFICATION_EMAIL
+        msg['Subject'] = f"[GRM] {assunto}"
+        msg.attach(MIMEText(corpo, 'html'))
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        st.error(f"Erro ao enviar e-mail: {e}")
+        return False
 EMPRESAS = [
     "Selecione uma empresa",
     "214 - Ankara - tunas, Paraná",
@@ -295,6 +327,18 @@ def pagina_nova_solicitacao() -> None:
         st.success(f"Solicitação registrada com sucesso. Protocolo: {protocolo}")
         st.info("Guarde o protocolo para acompanhar o andamento da solicitação.")
 
+        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in itens]) + "</ul>"
+        corpo_email = f"""
+        <h3>Nova Solicitação Registrada</h3>
+        <p><strong>Protocolo:</strong> {protocolo}</p>
+        <p><strong>Empresa:</strong> {empresa}</p>
+        <p><strong>Solicitante:</strong> {solicitante.strip()}</p>
+        <p><strong>Prioridade:</strong> {prioridade}</p>
+        <h4>Itens:</h4>
+        {itens_html}
+        """
+        enviar_email_notificacao(f"Nova Solicitação: {protocolo}", corpo_email)
+
 
 def pagina_acompanhar_status() -> None:
     """Permite a consulta de uma solicitação pelo protocolo gerado."""
@@ -426,6 +470,19 @@ def pagina_atendimento() -> None:
         solicitacao["observacao_triagem"] = justificativa.strip()
         atualizar_status(solicitacao, novo_status)
         st.success(f"{solicitacao['protocolo']} encaminhada para {destino.lower()}.")
+
+        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+        corpo_email = f"""
+        <h3>Solicitação Encaminhada</h3>
+        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+        <p><strong>Setor Destino:</strong> {destino}</p>
+        <p><strong>Atendente:</strong> {st.session_state.atendente_nome}</p>
+        <h4>Itens:</h4>
+        {itens_html}
+        """
+        enviar_email_notificacao(f"Encaminhamento: {solicitacao['protocolo']}", corpo_email)
         st.rerun()
 
 
@@ -478,6 +535,18 @@ def pagina_almoxarifado() -> None:
         solicitacao["observacao_almoxarifado"] = observacao.strip()
         atualizar_status(solicitacao, "Atendido pelo almoxarifado")
         st.success(f"Disponibilidade registrada para {solicitacao['protocolo']}.")
+
+        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>" for item in disponibilidade.to_dict(orient='records')]) + "</ul>"
+        corpo_email = f"""
+        <h3>Retorno do Almoxarifado</h3>
+        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+        <p><strong>Status Final:</strong> Atendido pelo almoxarifado</p>
+        <h4>Itens:</h4>
+        {itens_html}
+        """
+        enviar_email_notificacao(f"Retorno Almoxarifado: {solicitacao['protocolo']}", corpo_email)
         st.rerun()
 
 
@@ -522,6 +591,20 @@ def pagina_compras() -> None:
         }
         atualizar_status(solicitacao, "Compra solicitada")
         st.success(f"Dados de compra registrados para {solicitacao['protocolo']}.")
+
+        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+        corpo_email = f"""
+        <h3>Dados de Compra Registrados</h3>
+        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+        <p><strong>Fornecedor:</strong> {solicitacao['dados_compra']['fornecedor']}</p>
+        <p><strong>Previsão:</strong> {solicitacao['dados_compra']['previsao']}</p>
+        <p><strong>Responsável:</strong> {solicitacao['dados_compra']['responsavel']}</p>
+        <h4>Itens:</h4>
+        {itens_html}
+        """
+        enviar_email_notificacao(f"Dados de Compra: {solicitacao['protocolo']}", corpo_email)
         st.rerun()
 
 
