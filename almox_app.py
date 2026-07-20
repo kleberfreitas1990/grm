@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.9.1"
+APP_VERSION = "0.9.2"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -284,7 +284,15 @@ def pagina_nova_solicitacao_simplificada() -> None:
     """Formulário extremamente simples e acessível para o solicitante."""
     st.write("Preencha as informações abaixo para solicitar os materiais.")
 
-    with st.form("form_simples_solicitante"):
+    # Inicializar lista de materiais no session_state fora do form
+    if "lista_materiais" not in st.session_state:
+        st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
+
+    if st.button("Adicionar outro material"):
+        st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
+        st.rerun()
+
+    with st.form("form_simples_solicitante", clear_on_submit=True):
         # Caminho 1: Grande e claro
         empresa = st.selectbox("Qual é a empresa?", EMPRESAS)
 
@@ -296,21 +304,12 @@ def pagina_nova_solicitacao_simplificada() -> None:
         st.write("**Quais materiais você precisa?**")
         st.caption("Escreva o nome do material e a quantidade. Para adicionar mais materiais, preencha os campos abaixo.")
 
-        # Inicializar lista de materiais no session_state
-        if "lista_materiais" not in st.session_state:
-            st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
-
-        novos_materiais = []
         for i, item in enumerate(st.session_state.lista_materiais):
             col1, col2 = st.columns([3, 1])
             with col1:
                 item["produto"] = st.text_input(f"Material {i+1}", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
             with col2:
                 item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
-
-        if st.button("Adicionar outro material"):
-            st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
-            st.rerun()
 
         st.write("---")
         observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")

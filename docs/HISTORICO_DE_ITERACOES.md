@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 015 — Versão 0.9.2 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir o erro de execução causado por um botão dentro de um formulário no Streamlit e ajustar a lógica de inclusão de materiais.
+
+### Prompt sanitizado
+
+> streamlit.errors.StreamlitAPIException: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Bug Fix | Removido o botão `st.button("Adicionar outro material")` de dentro do bloco `st.form`, o que causava um erro de API do Streamlit. |
+| Lógica | O botão de adicionar material agora é renderizado fora do formulário, permitindo que o usuário adicione dinamicamente novos campos de texto e número para os materiais antes de preencher o formulário principal. |
+| Versionamento | Atualização da versão da aplicação para `0.9.2`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Correção da função `pagina_nova_solicitacao_simplificada()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a aplicação como "SOLICITANTE" para garantir que o formulário não apresenta erros de renderização e que o botão "Adicionar outro material" funciona corretamente fora do formulário.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.9.2`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 014 — Versão 0.9.1 — 20 de julho de 2026
 
 ### Objetivo
