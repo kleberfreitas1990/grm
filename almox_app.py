@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.7.2"
+APP_VERSION = "0.8.0"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -659,28 +659,66 @@ def pagina_compras() -> None:
 def main() -> None:
     configurar_pagina()
     inicializar_estado()
-    renderizar_cabecalho()
-    renderizar_fluxo()
 
-    aba_solicitacao, aba_status, aba_atendimento, aba_almoxarifado, aba_compras = st.tabs(
-        [
-            "Nova solicitação",
-            "Acompanhar status",
-            "Atendimento",
-            "Almoxarifado",
-            "Compras",
-        ]
-    )
-    with aba_solicitacao:
-        pagina_nova_solicitacao()
-    with aba_status:
-        pagina_acompanhar_status()
-    with aba_atendimento:
-        pagina_atendimento()
-    with aba_almoxarifado:
-        pagina_almoxarifado()
-    with aba_compras:
-        pagina_compras()
+    st.session_state.setdefault("perfil", "")
+
+    if st.session_state.perfil == "":
+        st.title("Gestão de Requisições de Materiais")
+        st.write("Selecione seu perfil de acesso para continuar:")
+
+        col_solicitante, col_atendente = st.columns(2)
+
+        with col_solicitante:
+            if st.button("SOLICITANTE", type="primary", width="stretch", height=100):
+                st.session_state.perfil = "solicitante"
+                st.rerun()
+
+        with col_atendente:
+            if st.button("ATENDENTE", type="secondary", width="stretch", height=100):
+                st.session_state.perfil = "atendente"
+                st.rerun()
+
+        st.markdown("---")
+        st.caption("Versão da aplicação: " + APP_VERSION)
+        return
+
+    if st.session_state.perfil == "solicitante":
+        renderizar_cabecalho()
+        aba_solicitacao, aba_status = st.tabs(
+            [
+                "Nova solicitação",
+                "Acompanhar status",
+            ]
+        )
+        with aba_solicitacao:
+            pagina_nova_solicitacao()
+        with aba_status:
+            pagina_acompanhar_status()
+
+        if st.button("Voltar para a tela inicial"):
+            st.session_state.perfil = ""
+            st.rerun()
+
+    elif st.session_state.perfil == "atendente":
+        renderizar_cabecalho()
+        aba_atendimento, aba_almoxarifado, aba_compras = st.tabs(
+            [
+                "Atendimento",
+                "Almoxarifado",
+                "Compras",
+            ]
+        )
+        with aba_atendimento:
+            pagina_atendimento()
+        with aba_almoxarifado:
+            pagina_almoxarifado()
+        with aba_compras:
+            pagina_compras()
+
+        if st.button("Voltar para a tela inicial"):
+            st.session_state.perfil = ""
+            st.session_state.atendente_autenticado = False
+            st.rerun()
 
 
 if __name__ == "__main__":

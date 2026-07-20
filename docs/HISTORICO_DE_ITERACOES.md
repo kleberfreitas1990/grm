@@ -6,6 +6,43 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 011 — Versão 0.8.0 — 20 de julho de 2026
+
+### Objetivo
+
+Simplificar a tela inicial para um menu direto de seleção de perfil (Solicitante/Atendente), com acesso imediato às funcionalidades correspondentes.
+
+### Prompt sanitizado
+
+> acho q poderia melhorar a primeira tela, deixar apenas informação de solicitação : aparecer primeiro se é solicitante ou atendente se for solicitante ja aparecer opção de nova solicitação ou acompanhar
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Navegação | A aplicação agora inicia com uma tela limpa com apenas dois botões grandes: "SOLICITANTE" e "ATENDENTE". |
+| Fluxo (Solicitante) | Ao selecionar Solicitante, o usuário acessa diretamente as abas de "Nova solicitação" e "Acompanhar status". |
+| Fluxo (Atendente) | Ao selecionar Atendente, o usuário acessa as abas de "Atendimento", "Almoxarifado" e "Compras". |
+| Versionamento | Atualização da versão da aplicação para `0.8.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Reescrita da função `main()` para implementar o menu de perfis. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a página principal da aplicação para garantir que o menu inicial aparece corretamente e que a navegação entre os perfis funciona como esperado.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.8.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 010 — Versão 0.7.2 — 20 de julho de 2026
 
 ### Objetivo
