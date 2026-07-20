@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.8.0"
+APP_VERSION = "0.8.1"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -669,12 +669,12 @@ def main() -> None:
         col_solicitante, col_atendente = st.columns(2)
 
         with col_solicitante:
-            if st.button("SOLICITANTE", type="primary", width="stretch", height=100):
+            if st.button("SOLICITANTE", type="primary", width="stretch"):
                 st.session_state.perfil = "solicitante"
                 st.rerun()
 
         with col_atendente:
-            if st.button("ATENDENTE", type="secondary", width="stretch", height=100):
+            if st.button("ATENDENTE", type="secondary", width="stretch"):
                 st.session_state.perfil = "atendente"
                 st.rerun()
 

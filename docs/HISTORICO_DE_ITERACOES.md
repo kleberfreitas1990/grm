@@ -6,6 +6,41 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 012 — Versão 0.8.1 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir um erro de execução (`TypeError`) na tela inicial da aplicação causado pelo uso de um parâmetro obsoleto no componente `st.button`.
+
+### Prompt sanitizado
+
+> TypeError: This app has encountered an error. The original error message is redacted to prevent data leaks. Full error details have been recorded in the logs (if you're on Streamlit Cloud, click on 'Manage app' in the lower right of your app).
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Interface | Remoção do parâmetro `height=100` da chamada `st.button(...)` na tela inicial, pois este parâmetro não é suportado na versão atual do Streamlit e gerava uma exceção. |
+| Versionamento | Atualização da versão da aplicação para `0.8.1`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Atualização da versão e correção da chamada `st.button`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a página principal da aplicação para garantir que o menu inicial aparece corretamente e que o erro de execução não ocorre mais.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.8.1`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 011 — Versão 0.8.0 — 20 de julho de 2026
 
 ### Objetivo
