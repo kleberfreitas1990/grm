@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.9.0"
+APP_VERSION = "0.9.1"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -282,36 +282,35 @@ def renderizar_fluxo() -> None:
 
 def pagina_nova_solicitacao_simplificada() -> None:
     """Formulário extremamente simples e acessível para o solicitante."""
-    st.write("Preencha as informações abaixo para solicitar os materiais. Certifique-se de que todos os campos estão corretos antes de enviar.")
+    st.write("Preencha as informações abaixo para solicitar os materiais.")
 
     with st.form("form_simples_solicitante"):
         # Caminho 1: Grande e claro
         empresa = st.selectbox("Qual é a empresa?", EMPRESAS)
 
         st.write("---")
-        solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome completo")
+        solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome")
         setor_solicitante = st.text_input("Qual é o seu setor? (opcional)", placeholder="Ex: Manutenção, Operador, etc")
 
         st.write("---")
         st.write("**Quais materiais você precisa?**")
-        st.caption("Escreva o nome do material e a quantidade. Se precisar de mais de um, clique no \"+\" para adicionar uma linha.")
+        st.caption("Escreva o nome do material e a quantidade. Para adicionar mais materiais, preencha os campos abaixo.")
 
-        itens_editados = st.data_editor(
-            pd.DataFrame(
-                [
-                    {"Produto": "", "Quantidade": 1},
-                    {"Produto": "", "Quantidade": 1},
-                ]
-            ),
-            column_config={
-                "Produto": st.column_config.TextColumn("Nome do Material", width="large", required=True),
-                "Quantidade": st.column_config.NumberColumn("Quantidade", min_value=1, step=1, required=True),
-            },
-            num_rows="dynamic",
-            hide_index=True,
-            width="stretch",
-            key="editor_nova_solicitacao",
-        )
+        # Inicializar lista de materiais no session_state
+        if "lista_materiais" not in st.session_state:
+            st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
+
+        novos_materiais = []
+        for i, item in enumerate(st.session_state.lista_materiais):
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                item["produto"] = st.text_input(f"Material {i+1}", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
+            with col2:
+                item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
+
+        if st.button("Adicionar outro material"):
+            st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
+            st.rerun()
 
         st.write("---")
         observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")
@@ -319,7 +318,12 @@ def pagina_nova_solicitacao_simplificada() -> None:
         gravar = st.form_submit_button("ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
 
     if gravar:
-        itens = normalizar_itens(itens_editados)
+        # Filtrar materiais preenchidos
+        itens = []
+        for item in st.session_state.lista_materiais:
+            if item["produto"].strip() and item["quantidade"] > 0:
+                itens.append({"Produto": item["produto"].strip(), "Quantidade": item["quantidade"]})
+
         erros = []
         if empresa == EMPRESAS[0]:
             erros.append("Por favor, selecione a empresa.")
@@ -354,6 +358,9 @@ def pagina_nova_solicitacao_simplificada() -> None:
         db.salvar_solicitacao(solicitacao)
         st.session_state.solicitacoes.append(solicitacao)
         st.session_state.ultimo_protocolo = protocolo
+
+        # Limpar a lista de materiais após o envio
+        st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
 
         st.balloons()
         st.success(f"Sua solicitação foi enviada com sucesso! Anote este código para acompanhar depois: **{protocolo}**")

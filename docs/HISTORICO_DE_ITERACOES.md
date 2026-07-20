@@ -6,6 +6,43 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 014 — Versão 0.9.1 — 20 de julho de 2026
+
+### Objetivo
+
+Ajustar o formulário do solicitante para incluir materiais de forma individual (campos de texto e número) e remover a obrigatoriedade do nome completo, facilitando o uso no celular.
+
+### Prompt sanitizado
+
+> solicitante nao precisa de nome completo, os campos de inclusao de material ta ficando fora da tela de repente poderia ser lançado igual o campo de nome e depois fosse pro campo quantidade
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Formulário | Substituição da tabela editável (`st.data_editor`) por campos individuais (`st.text_input` e `st.number_input`) para a inserção de materiais, evitando quebra de layout em telas pequenas. |
+| Validação | Removida a obrigatoriedade do nome completo no campo "Qual é o seu nome?". |
+| Dinâmica | Adicionado um botão "Adicionar outro material" para gerar novos campos conforme a necessidade. |
+| Versionamento | Atualização da versão da aplicação para `0.9.1`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Reescrita da função `pagina_nova_solicitacao_simplificada()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a aplicação como "SOLICITANTE" para garantir que os campos de materiais se adaptam à tela do celular e que o formulário é submetido corretamente.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.9.1`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 013 — Versão 0.9.0 — 20 de julho de 2026
 
 ### Objetivo
