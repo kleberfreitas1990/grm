@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 010 — Versão 0.7.2 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir o visual da aplicação em dispositivos móveis, que estava com fundo preto (tema escuro), alterando para um tema claro e limpo.
+
+### Prompt sanitizado
+
+> o visual ainda ta zuado no celular fica preto
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Tema | Criação do arquivo `.streamlit/config.toml` para forçar o uso do tema claro (`base = "light"`) e definir cores limpas para a interface. |
+| Versionamento | Atualização da versão da aplicação para `0.7.2`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `.streamlit/config.toml` | Novo arquivo de configuração para definir o tema claro global da aplicação. |
+| `almox_app.py` | Atualização da versão. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada em um dispositivo móvel para garantir que o fundo da aplicação agora é branco e os textos estão legíveis.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.7.2`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 009 — Versão 0.7.1 — 20 de julho de 2026
 
 ### Objetivo

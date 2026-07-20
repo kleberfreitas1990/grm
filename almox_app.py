@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.7.1"
+APP_VERSION = "0.7.2"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
