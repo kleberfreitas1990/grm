@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 006 — Versão 0.5.0 — 20 de julho de 2026
+
+### Objetivo
+
+Adicionar opção de consulta por empresa na aba de acompanhamento de status para quem perde o protocolo.
+
+### Prompt sanitizado
+
+> alem da consulta por protocolo habilite tbm a opção de selecionar a empresa pra ver todas as solicitações pq as pessoas perdem os protocolos
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Interface | Adição de um `st.radio` para alternar entre busca por protocolo e busca por empresa na aba "Acompanhar status". |
+| Funcionalidade | Criação da função auxiliar `exibir_detalhes_solicitacao` para renderizar as solicitações encontradas em ambas as buscas. |
+| Versionamento | Atualização da versão da aplicação para `0.5.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Adição do filtro por empresa e refatoração da exibição de detalhes. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada visualmente para garantir que a nova opção de busca por empresa está funcionando corretamente e listando todas as solicitações da empresa selecionada.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.5.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 005 — Versão 0.4.0 — 20 de julho de 2026
 
 ### Objetivo

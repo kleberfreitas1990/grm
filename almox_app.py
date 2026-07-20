@@ -20,7 +20,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -345,51 +345,75 @@ def pagina_acompanhar_status() -> None:
     st.subheader("Acompanhar status")
     st.write("Consulte a evolução de uma solicitação informando o protocolo gerado no momento do registro.")
 
-    protocolo_padrao = st.session_state.ultimo_protocolo
-    protocolo = st.text_input("Protocolo da solicitação", value=protocolo_padrao, placeholder="Ex.: GRM-20260720-0001")
-    consultar = st.button("Consultar status", type="primary")
+    opcao_busca = st.radio(
+        "Método de busca",
+        ["Por protocolo", "Por empresa"],
+        horizontal=True
+    )
 
-    if consultar:
-        solicitacao = localizar_solicitacao(protocolo.strip().upper())
-        if not solicitacao:
-            st.warning("Nenhuma solicitação foi encontrada com esse protocolo nesta sessão.")
-            return
+    if opcao_busca == "Por protocolo":
+        protocolo_padrao = st.session_state.ultimo_protocolo
+        protocolo = st.text_input("Protocolo da solicitação", value=protocolo_padrao, placeholder="Ex.: GRM-20260720-0001")
+        consultar = st.button("Consultar status", type="primary")
 
-        cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
-        st.markdown(
-            f"""
-            <div style="background:#FFFFFF;border-left:7px solid {cor};border-radius:10px;padding:1.1rem 1.2rem;margin:1rem 0;border-top:1px solid #E2E8F0;border-right:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;">
-                <div style="font-size:.8rem;color:#64748B;font-weight:700;text-transform:uppercase;">{escape(solicitacao['protocolo'])}</div>
-                <div style="font-size:1.35rem;color:#0F172A;font-weight:800;margin:.18rem 0;">{escape(solicitacao['status'])}</div>
-                <div style="color:#475569;">{escape(descricao)}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-        detalhes, itens_coluna = st.columns([1, 1.2])
-        with detalhes:
-            st.markdown("#### Dados da solicitação")
-            st.write(f"**Empresa:** {solicitacao['empresa']}")
-            st.write(f"**Solicitante:** {solicitacao['solicitante']}")
-            st.write(f"**Prioridade:** {solicitacao['prioridade']}")
-            if solicitacao["destino"]:
-                st.write(f"**Encaminhamento:** {solicitacao['destino']}")
-            st.write(f"**Última atualização:** {solicitacao['atualizado_em'].strftime('%d/%m/%Y às %H:%M')}")
-        with itens_coluna:
-            st.markdown("#### Itens solicitados")
-            st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
+        if consultar:
+            solicitacao = localizar_solicitacao(protocolo.strip().upper())
+            if not solicitacao:
+                st.warning("Nenhuma solicitação foi encontrada com esse protocolo nesta sessão.")
+                return
 
-        if solicitacao.get("estoque"):
-            st.markdown("#### Retorno do almoxarifado")
-            st.dataframe(pd.DataFrame(solicitacao["estoque"]), hide_index=True, width="stretch")
-        if solicitacao.get("dados_compra"):
-            dados = solicitacao["dados_compra"]
-            st.markdown("#### Dados registrados para compras")
-            st.write(f"**Fornecedor sugerido:** {dados.get('fornecedor', 'Não informado')}")
-            st.write(f"**Previsão de entrega:** {dados.get('previsao', 'Não informada')}")
-            if dados.get("observacao"):
-                st.write(f"**Observação:** {dados['observacao']}")
+            exibir_detalhes_solicitacao(solicitacao)
 
+    else:
+        empresa_selecionada = st.selectbox("Selecione a empresa", EMPRESAS[1:])
+        filtrar = st.button("Filtrar solicitações", type="primary")
+
+        if filtrar:
+            solicitacoes = [s for s in st.session_state.solicitacoes if s['empresa'] == empresa_selecionada]
+            if not solicitacoes:
+                st.warning(f"Nenhuma solicitação encontrada para {empresa_selecionada} nesta sessão.")
+                return
+
+            for solicitacao in solicitacoes:
+                exibir_detalhes_solicitacao(solicitacao)
+                st.markdown("---")
+
+
+def exibir_detalhes_solicitacao(solicitacao: dict) -> None:
+    cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
+    st.markdown(
+        f"""
+        <div style="background:#FFFFFF;border-left:7px solid {cor};border-radius:10px;padding:1.1rem 1.2rem;margin:1rem 0;border-top:1px solid #E2E8F0;border-right:1px solid #E2E8F0;border-bottom:1px solid #E2E8F0;">
+            <div style="font-size:.8rem;color:#64748B;font-weight:700;text-transform:uppercase;">{escape(solicitacao['protocolo'])}</div>
+            <div style="font-size:1.35rem;color:#0F172A;font-weight:800;margin:.18rem 0;">{escape(solicitacao['status'])}</div>
+            <div style="color:#475569;">{escape(descricao)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    detalhes, itens_coluna = st.columns([1, 1.2])
+    with detalhes:
+        st.markdown("#### Dados da solicitação")
+        st.write(f"**Empresa:** {solicitacao['empresa']}")
+        st.write(f"**Solicitante:** {solicitacao['solicitante']}")
+        st.write(f"**Prioridade:** {solicitacao['prioridade']}")
+        if solicitacao["destino"]:
+            st.write(f"**Encaminhamento:** {solicitacao['destino']}")
+        st.write(f"**Última atualização:** {solicitacao['atualizado_em'].strftime('%d/%m/%Y às %H:%M')}")
+    with itens_coluna:
+        st.markdown("#### Itens solicitados")
+        st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
+
+    if solicitacao.get("estoque"):
+        st.markdown("#### Retorno do almoxarifado")
+        st.dataframe(pd.DataFrame(solicitacao["estoque"]), hide_index=True, width="stretch")
+    if solicitacao.get("dados_compra"):
+        dados = solicitacao["dados_compra"]
+        st.markdown("#### Dados registrados para compras")
+        st.write(f"**Fornecedor sugerido:** {dados.get('fornecedor', 'Não informado')}")
+        st.write(f"**Previsão de entrega:** {dados.get('previsao', 'Não informada')}")
+        if dados.get("observacao"):
+            st.write(f"**Observação:** {dados['observacao']}")
 
 def autenticar_atendente() -> bool:
     """Controla o acesso à área de triagem sem expor a senha no código."""
