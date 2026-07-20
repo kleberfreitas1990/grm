@@ -6,6 +6,41 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 016 — Versão 0.9.3 — 20 de julho de 2026
+
+### Objetivo
+
+Mover o botão "Adicionar outro material" para aparecer logo abaixo do último material cadastrado e publicar a versão 0.9.3.
+
+### Prompt sanitizado
+
+> o botao de adicionar outro materia tinha que ficar abaixo ne
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Layout | O botão "Adicionar outro material" foi movido para dentro do formulário, logo abaixo dos campos de materiais, para melhorar a experiência do usuário. |
+| Versionamento | Atualização da versão da aplicação para `0.9.3`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Ajuste da função `pagina_nova_solicitacao_simplificada()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a aplicação como "SOLICITANTE" para garantir que o botão de adicionar material aparece na posição correta e funciona corretamente.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.9.3`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 015 — Versão 0.9.2 — 20 de julho de 2026
 
 ### Objetivo
