@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.8.1"
+APP_VERSION = "0.9.0"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -280,46 +280,53 @@ def renderizar_fluxo() -> None:
             )
 
 
-def pagina_nova_solicitacao() -> None:
-    """Permite ao solicitante incluir e gravar uma requisição de materiais."""
-    st.subheader("Nova solicitação")
-    st.write("Informe a empresa, os dados do solicitante e os materiais necessários. Os itens podem ser ajustados antes do envio.")
+def pagina_nova_solicitacao_simplificada() -> None:
+    """Formulário extremamente simples e acessível para o solicitante."""
+    st.write("Preencha as informações abaixo para solicitar os materiais. Certifique-se de que todos os campos estão corretos antes de enviar.")
 
-    empresa = st.selectbox("Empresa solicitante *", EMPRESAS)
-    solicitante = st.text_input("Nome do solicitante *", placeholder="Ex.: Maria da Silva")
-    setor_solicitante = st.text_input("Setor solicitante", placeholder="Ex.: Manutenção")
-    prioridade = st.selectbox("Prioridade", ["Normal", "Alta", "Urgente"])
+    with st.form("form_simples_solicitante"):
+        # Caminho 1: Grande e claro
+        empresa = st.selectbox("Qual é a empresa?", EMPRESAS)
 
-    st.markdown("#### Produtos e quantidades")
-    st.caption("Inclua uma linha para cada produto. Para editar, clique diretamente na célula correspondente.")
-    itens_editados = st.data_editor(
-        pd.DataFrame(
-            [
-                {"Produto": "", "Quantidade": 1},
-                {"Produto": "", "Quantidade": 1},
-            ]
-        ),
-        column_config={
-            "Produto": st.column_config.TextColumn("Produto *", width="large", required=True),
-            "Quantidade": st.column_config.NumberColumn("Quantidade *", min_value=1, step=1, required=True),
-        },
-        num_rows="dynamic",
-        hide_index=True,
-        width="stretch",
-        key="editor_nova_solicitacao",
-    )
-    observacao = st.text_area("Observação", placeholder="Inclua detalhes que apoiem o atendimento, se necessário.")
-    gravar = st.button("Gravar solicitação", type="primary", width="stretch")
+        st.write("---")
+        solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome completo")
+        setor_solicitante = st.text_input("Qual é o seu setor? (opcional)", placeholder="Ex: Manutenção, Operador, etc")
+
+        st.write("---")
+        st.write("**Quais materiais você precisa?**")
+        st.caption("Escreva o nome do material e a quantidade. Se precisar de mais de um, clique no \"+\" para adicionar uma linha.")
+
+        itens_editados = st.data_editor(
+            pd.DataFrame(
+                [
+                    {"Produto": "", "Quantidade": 1},
+                    {"Produto": "", "Quantidade": 1},
+                ]
+            ),
+            column_config={
+                "Produto": st.column_config.TextColumn("Nome do Material", width="large", required=True),
+                "Quantidade": st.column_config.NumberColumn("Quantidade", min_value=1, step=1, required=True),
+            },
+            num_rows="dynamic",
+            hide_index=True,
+            width="stretch",
+            key="editor_nova_solicitacao",
+        )
+
+        st.write("---")
+        observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")
+
+        gravar = st.form_submit_button("ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
 
     if gravar:
         itens = normalizar_itens(itens_editados)
         erros = []
         if empresa == EMPRESAS[0]:
-            erros.append("Selecione a empresa solicitante.")
+            erros.append("Por favor, selecione a empresa.")
         if not solicitante.strip():
-            erros.append("Informe o nome do solicitante.")
+            erros.append("Por favor, escreva o seu nome.")
         if not itens:
-            erros.append("Inclua pelo menos um produto com quantidade maior que zero.")
+            erros.append("Por favor, adicione pelo menos um material na lista.")
 
         if erros:
             for erro in erros:
@@ -333,7 +340,7 @@ def pagina_nova_solicitacao() -> None:
             "empresa": empresa,
             "solicitante": solicitante.strip(),
             "setor": setor_solicitante.strip(),
-            "prioridade": prioridade,
+            "prioridade": "Normal",
             "itens": itens,
             "observacao": observacao.strip(),
             "status": "Aguardando triagem",
@@ -347,20 +354,9 @@ def pagina_nova_solicitacao() -> None:
         db.salvar_solicitacao(solicitacao)
         st.session_state.solicitacoes.append(solicitacao)
         st.session_state.ultimo_protocolo = protocolo
-        st.success(f"Solicitação registrada com sucesso. Protocolo: {protocolo}")
-        st.info("Guarde o protocolo para acompanhar o andamento da solicitação.")
 
-        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in itens]) + "</ul>"
-        corpo_email = f"""
-        <h3>Nova Solicitação Registrada</h3>
-        <p><strong>Protocolo:</strong> {protocolo}</p>
-        <p><strong>Empresa:</strong> {empresa}</p>
-        <p><strong>Solicitante:</strong> {solicitante.strip()}</p>
-        <p><strong>Prioridade:</strong> {prioridade}</p>
-        <h4>Itens:</h4>
-        {itens_html}
-        """
-        enviar_email_notificacao(f"Nova Solicitação: {protocolo}", corpo_email)
+        st.balloons()
+        st.success(f"Sua solicitação foi enviada com sucesso! Anote este código para acompanhar depois: **{protocolo}**")
 
 
 def pagina_acompanhar_status() -> None:
@@ -683,21 +679,30 @@ def main() -> None:
         return
 
     if st.session_state.perfil == "solicitante":
-        renderizar_cabecalho()
-        aba_solicitacao, aba_status = st.tabs(
-            [
-                "Nova solicitação",
-                "Acompanhar status",
-            ]
-        )
-        with aba_solicitacao:
-            pagina_nova_solicitacao()
-        with aba_status:
-            pagina_acompanhar_status()
+        st.session_state.setdefault("modo_solicitante", "form")
 
-        if st.button("Voltar para a tela inicial"):
-            st.session_state.perfil = ""
-            st.rerun()
+        if st.session_state.modo_solicitante == "form":
+            st.subheader("Nova solicitação de materiais")
+            pagina_nova_solicitacao_simplificada()
+            if st.button("Verificar o status das minhas solicitações"):
+                st.session_state.modo_solicitante = "status"
+                st.rerun()
+
+            if st.button("Voltar para a tela inicial"):
+                st.session_state.perfil = ""
+                st.session_state.modo_solicitante = "form"
+                st.rerun()
+
+        else:
+            st.subheader("Acompanhar status")
+            pagina_acompanhar_status()
+            if st.button("Voltar para Nova solicitação"):
+                st.session_state.modo_solicitante = "form"
+                st.rerun()
+            if st.button("Voltar para a tela inicial"):
+                st.session_state.perfil = ""
+                st.session_state.modo_solicitante = "form"
+                st.rerun()
 
     elif st.session_state.perfil == "atendente":
         renderizar_cabecalho()

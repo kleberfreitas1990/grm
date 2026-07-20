@@ -2,6 +2,17 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.9.0] — 2026-07-20
+
+### Adicionado
+
+- Redesenho completo do fluxo do solicitante para ser extremamente intuitivo e acessível.
+- Remoção das abas na tela do solicitante; o formulário de "Nova solicitação" agora ocupa a tela inteira por padrão.
+- Textos de ajuda simplificados e diretos no formulário para facilitar o preenchimento por pessoas com dificuldades tecnológicas.
+- Adicionada animação de sucesso (`st.balloons()`) e mensagem clara com o código de acompanhamento após o envio.
+
+[0.9.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.9.0
+
 ## [0.8.1] — 2026-07-20
 
 ### Corrigido

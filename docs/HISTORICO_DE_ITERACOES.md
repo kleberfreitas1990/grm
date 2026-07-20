@@ -6,6 +6,43 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 013 — Versão 0.9.0 — 20 de julho de 2026
+
+### Objetivo
+
+Redesenhar o fluxo do solicitante para ser extremamente intuitivo e acessível, removendo abas e deixando o formulário grande, claro e direto para pessoas com dificuldades tecnológicas.
+
+### Prompt sanitizado
+
+> a  tela quando seleciona Solicitante tem que aparecer de forma grande apenas as informações pra gerar a requisição, nos lidamos com pessoas que tem dificuldades, entao, vamos deixar bem intuitivo
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Navegação | Removidas as abas na tela do solicitante. O formulário de "Nova solicitação" agora ocupa a tela inteira por padrão. |
+| Formulário | O formulário foi simplificado, com textos de ajuda mais claros (ex: "Qual é a empresa?", "Qual é o seu nome?"). |
+| Confirmação | Adicionada uma animação de balões (`st.balloons()`) e uma mensagem de sucesso clara destacando o código de acompanhamento. |
+| Versionamento | Atualização da versão da aplicação para `0.9.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Reescrita da função `main()` e criação da nova função `pagina_nova_solicitacao_simplificada()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada acessando a aplicação como "SOLICITANTE" para garantir que o formulário é o primeiro elemento visualizado e que os textos são claros e fáceis de entender.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.9.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 012 — Versão 0.8.1 — 20 de julho de 2026
 
 ### Objetivo
