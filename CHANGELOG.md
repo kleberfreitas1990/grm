@@ -2,6 +2,15 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.7.0] — 2026-07-20
+
+### Adicionado
+
+- Persistência de dados utilizando banco de dados SQLite (`db.py`).
+- As solicitações agora são salvas permanentemente e não se perdem ao fechar o navegador ou reiniciar a aplicação.
+
+[0.7.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.7.0
+
 ## [0.6.0] — 2026-07-20
 
 ### Alterado

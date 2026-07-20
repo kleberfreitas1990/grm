@@ -6,6 +6,45 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 008 — Versão 0.7.0 — 20 de julho de 2026
+
+### Objetivo
+
+Implementar persistência das solicitações usando banco de dados SQLite para que elas não se percam ao reiniciar a aplicação ou fechar a sessão.
+
+### Prompt sanitizado
+
+> vmaos precisar tomar cuidado pq as solicitações nao podem sumir ok
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Persistência | Criação do módulo `db.py` com funções para criar tabela, salvar, carregar todas e carregar por protocolo em SQLite. |
+| Integração | Substituição do armazenamento em memória (`st.session_state`) por chamadas ao banco de dados nas funções de criação, atualização e busca de solicitações. |
+| Arquivos | Adição do arquivo `grm_data.db` ao `.gitignore` para não subir o banco de dados no repositório. |
+| Versionamento | Atualização da versão da aplicação para `0.7.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `db.py` | Novo módulo para gerenciamento do banco de dados SQLite. |
+| `almox_app.py` | Alteração das funções `inicializar_estado`, `localizar_solicitacao`, `atualizar_status`, `gerar_protocolo` e o bloco de criação de nova solicitação para usar o `db.py`. |
+| `.gitignore` | Adição de `grm_data.db` para ignorar o arquivo de banco de dados local. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada criando uma nova solicitação, fechando a aba e abrindo novamente para verificar se a solicitação ainda está listada no banco de dados e na interface.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.7.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 007 — Versão 0.6.0 — 20 de julho de 2026
 
 ### Objetivo

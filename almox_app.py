@@ -16,11 +16,12 @@ from email.mime.text import MIMEText
 from html import escape
 from typing import Any
 
+import db
 import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.7.0"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -182,8 +183,8 @@ def configurar_pagina() -> None:
 
 def inicializar_estado() -> None:
     """Inicializa somente os dados que precisam sobreviver às interações da sessão."""
-    st.session_state.setdefault("solicitacoes", [])
-    st.session_state.setdefault("sequencia_protocolo", 1)
+    st.session_state.setdefault("solicitacoes", db.carregar_todas())
+    st.session_state.setdefault("sequencia_protocolo", db.obter_sequencia_protocolo())
     st.session_state.setdefault("atendente_autenticado", False)
     st.session_state.setdefault("atendente_nome", "")
     st.session_state.setdefault("ultimo_protocolo", "")
@@ -191,8 +192,7 @@ def inicializar_estado() -> None:
 
 def gerar_protocolo() -> str:
     """Gera um identificador legível para acompanhamento da solicitação."""
-    sequencia = st.session_state.sequencia_protocolo
-    st.session_state.sequencia_protocolo += 1
+    sequencia = db.obter_sequencia_protocolo()
     return f"GRM-{datetime.now():%Y%m%d}-{sequencia:04d}"
 
 
@@ -210,17 +210,15 @@ def normalizar_itens(dados: pd.DataFrame) -> list[dict[str, Any]]:
 
 
 def localizar_solicitacao(protocolo: str) -> dict[str, Any] | None:
-    """Localiza uma solicitação pelo protocolo na sessão atual."""
-    for solicitacao in st.session_state.solicitacoes:
-        if solicitacao["protocolo"] == protocolo:
-            return solicitacao
-    return None
+    """Localiza uma solicitação pelo protocolo no banco de dados."""
+    return db.carregar_por_protocolo(protocolo)
 
 
 def atualizar_status(solicitacao: dict[str, Any], novo_status: str) -> None:
     """Atualiza status e preserva a data/hora da última movimentação."""
     solicitacao["status"] = novo_status
     solicitacao["atualizado_em"] = datetime.now()
+    db.salvar_solicitacao(solicitacao)
 
 
 def renderizar_chip_status(status: str) -> None:
@@ -334,24 +332,24 @@ def pagina_nova_solicitacao() -> None:
 
         protocolo = gerar_protocolo()
         agora = datetime.now()
-        st.session_state.solicitacoes.append(
-            {
-                "protocolo": protocolo,
-                "empresa": empresa,
-                "solicitante": solicitante.strip(),
-                "setor_solicitante": setor_solicitante.strip(),
-                "prioridade": prioridade,
-                "itens": itens,
-                "observacao": observacao.strip(),
-                "status": "Aguardando triagem",
-                "criado_em": agora,
-                "atualizado_em": agora,
-                "destino": "",
-                "triado_por": "",
-                "estoque": [],
-                "dados_compra": {},
-            }
-        )
+        solicitacao = {
+            "protocolo": protocolo,
+            "empresa": empresa,
+            "solicitante": solicitante.strip(),
+            "setor": setor_solicitante.strip(),
+            "prioridade": prioridade,
+            "itens": itens,
+            "observacao": observacao.strip(),
+            "status": "Aguardando triagem",
+            "criado_em": agora,
+            "atualizado_em": agora,
+            "destino": "",
+            "triado_por": "",
+            "estoque": [],
+            "dados_compra": {},
+        }
+        db.salvar_solicitacao(solicitacao)
+        st.session_state.solicitacoes.append(solicitacao)
         st.session_state.ultimo_protocolo = protocolo
         st.success(f"Solicitação registrada com sucesso. Protocolo: {protocolo}")
         st.info("Guarde o protocolo para acompanhar o andamento da solicitação.")
