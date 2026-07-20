@@ -6,6 +6,42 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 009 — Versão 0.7.1 — 20 de julho de 2026
+
+### Objetivo
+
+Corrigir o layout da página de nova solicitação para ficar compacto e funcional em dispositivos móveis (celulares).
+
+### Prompt sanitizado
+
+> no celular ainda ta zuado
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Interface (Mobile) | Remoção do uso de `st.form` com `st.columns` na página de nova solicitação. Os campos agora são renderizados sequencialmente, evitando quebras visuais e garantindo que os labels fiquem visíveis. |
+| Componentes | O botão de gravar foi alterado de `st.form_submit_button` para `st.button` para simplificar o fluxo em telas pequenas. |
+| Versionamento | Atualização da versão da aplicação para `0.7.1`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Reescrita da função `pagina_nova_solicitacao` e atualização da versão. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação prevista
+
+A versão deve ser validada em um dispositivo móvel para garantir que o formulário agora flui corretamente para baixo, com todos os campos e botões bem distribuídos e acessíveis.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.7.1`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 008 — Versão 0.7.0 — 20 de julho de 2026
 
 ### Objetivo

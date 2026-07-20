@@ -21,7 +21,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.7.0"
+APP_VERSION = "0.7.1"
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -285,35 +285,31 @@ def pagina_nova_solicitacao() -> None:
     st.subheader("Nova solicitação")
     st.write("Informe a empresa, os dados do solicitante e os materiais necessários. Os itens podem ser ajustados antes do envio.")
 
-    with st.form("formulario_nova_solicitacao", clear_on_submit=True):
-        esquerda, direita = st.columns(2)
-        with esquerda:
-            empresa = st.selectbox("Empresa solicitante *", EMPRESAS)
-            solicitante = st.text_input("Nome do solicitante *", placeholder="Ex.: Maria da Silva")
-        with direita:
-            setor_solicitante = st.text_input("Setor solicitante", placeholder="Ex.: Manutenção")
-            prioridade = st.selectbox("Prioridade", ["Normal", "Alta", "Urgente"])
+    empresa = st.selectbox("Empresa solicitante *", EMPRESAS)
+    solicitante = st.text_input("Nome do solicitante *", placeholder="Ex.: Maria da Silva")
+    setor_solicitante = st.text_input("Setor solicitante", placeholder="Ex.: Manutenção")
+    prioridade = st.selectbox("Prioridade", ["Normal", "Alta", "Urgente"])
 
-        st.markdown("#### Produtos e quantidades")
-        st.caption("Inclua uma linha para cada produto. Para editar, clique diretamente na célula correspondente.")
-        itens_editados = st.data_editor(
-            pd.DataFrame(
-                [
-                    {"Produto": "", "Quantidade": 1},
-                    {"Produto": "", "Quantidade": 1},
-                ]
-            ),
-            column_config={
-                "Produto": st.column_config.TextColumn("Produto *", width="large", required=True),
-                "Quantidade": st.column_config.NumberColumn("Quantidade *", min_value=1, step=1, required=True),
-            },
-            num_rows="dynamic",
-            hide_index=True,
-            width="stretch",
-            key="editor_nova_solicitacao",
-        )
-        observacao = st.text_area("Observação", placeholder="Inclua detalhes que apoiem o atendimento, se necessário.")
-        gravar = st.form_submit_button("Gravar solicitação", type="primary", width="stretch")
+    st.markdown("#### Produtos e quantidades")
+    st.caption("Inclua uma linha para cada produto. Para editar, clique diretamente na célula correspondente.")
+    itens_editados = st.data_editor(
+        pd.DataFrame(
+            [
+                {"Produto": "", "Quantidade": 1},
+                {"Produto": "", "Quantidade": 1},
+            ]
+        ),
+        column_config={
+            "Produto": st.column_config.TextColumn("Produto *", width="large", required=True),
+            "Quantidade": st.column_config.NumberColumn("Quantidade *", min_value=1, step=1, required=True),
+        },
+        num_rows="dynamic",
+        hide_index=True,
+        width="stretch",
+        key="editor_nova_solicitacao",
+    )
+    observacao = st.text_area("Observação", placeholder="Inclua detalhes que apoiem o atendimento, se necessário.")
+    gravar = st.button("Gravar solicitação", type="primary", width="stretch")
 
     if gravar:
         itens = normalizar_itens(itens_editados)

@@ -2,6 +2,14 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.7.1] — 2026-07-20
+
+### Corrigido
+
+- Layout da página de "Nova solicitação" agora é renderizado sequencialmente em dispositivos móveis, evitando quebra de colunas e garantindo que todos os campos e botões fiquem visíveis.
+
+[0.7.1]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.7.1
+
 ## [0.7.0] — 2026-07-20
 
 ### Adicionado
