@@ -2,6 +2,21 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.0.2] — 2026-07-21
+
+### Adicionado
+
+- Tabela `usuarios` no banco de dados SQLite com os usuários `compras` e `almoxarifado`.
+- Inserção automática das credenciais (senha `Grm@2026`) no banco ao inicializar a aplicação.
+- Autenticação agora busca a senha diretamente no banco de dados, sem depender de variáveis de ambiente ou secrets do Streamlit Cloud.
+
+### Alterado
+
+- Funções `obter_senha_configurada()` e `usuario_tem_permissao()` simplificadas para usar o banco.
+- Testes atualizados para validar a leitura da senha do banco.
+
+[1.0.2]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.0.2
+
 ## [1.0.1] — 2026-07-21
 
 ### Adicionado

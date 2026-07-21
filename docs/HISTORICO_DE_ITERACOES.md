@@ -6,6 +6,47 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 022 — Versão 1.0.2 — 21 de julho de 2026
+
+### Objetivo
+
+Migrar a autenticação de variáveis de ambiente/segredos do Streamlit Cloud para o banco de dados SQLite, inserindo os usuários compras e almoxarifado com a senha `Grm@2026` diretamente na tabela de usuários.
+
+### Prompt sanitizado
+
+> A senha não tá entrando com Grm@2026. Já tem um banco de dados SQLite pronto, só não tem usuário e senha inseridos.
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Banco de dados | Criada a tabela `usuarios` com campos: `chave`, `rotulo`, `senha`, `permissoes`. |
+| Banco de dados | Inserção automática dos usuários `compras` (senha `Grm@2026`, permissões `atendimento,compras`) e `almoxarifado` (senha `Grm@2026`, permissões `almoxarifado`). |
+| Autenticação | Função `obter_senha_configurada()` agora busca a senha no banco de dados via `db.obter_senha_usuario()`. |
+| Permissões | Função `usuario_tem_permissao()` agora busca permissões no banco via `db.obter_permissoes_usuario()`. |
+| Testes | Atualizado o teste de senha para validar leitura do banco em vez de variável de ambiente. |
+| Versionamento | Atualização da versão da aplicação para `1.0.2`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `db.py` | Adição da tabela `usuarios`, funções `obter_usuario()`, `obter_senha_usuario()`, `obter_permissoes_usuario()`. |
+| `almox_app.py` | Simplificação das funções `obter_senha_configurada()` e `usuario_tem_permissao()` para usar o banco. |
+| `tests/test_almox_app.py` | Atualização do teste de senha para validar leitura do banco. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Nove testes automatizados aprovados, incluindo a verificação de que a senha `Grm@2026` é lida corretamente do banco para ambos os usuários.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.0.2`.
+
+---
+
 ## Iteração 021 — Versão 1.0.1 — 21 de julho de 2026
 
 ### Objetivo

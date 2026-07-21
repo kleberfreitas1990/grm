@@ -1,6 +1,6 @@
 """Aplicação Streamlit para o fluxo de requisições de materiais do GRM.
 
-Versão da aplicação: 1.0.1
+Versão da aplicação: 1.0.2
 Os dados são persistidos em banco de dados SQLite para garantir que as
 solicitações não se percam ao reiniciar a aplicação.
 """
@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -546,29 +546,14 @@ def exibir_detalhes_solicitacao(solicitacao: dict) -> None:
 
 
 def obter_senha_configurada(usuario: str) -> str | None:
-    """Obtém a senha de um usuário a partir de configuração segura."""
-    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
-    if not dados_usuario:
-        return None
-
-    chave_senha = str(dados_usuario["chave_senha"])
-    senha = os.getenv(chave_senha)
-    if not senha:
-        try:
-            senha = st.secrets.get(chave_senha)
-        except Exception:
-            # Sem arquivo de segredos configurado, a variável de ambiente já foi testada.
-            senha = None
-
-    return str(senha).strip() if senha else None
+    """Obtém a senha de um usuário a partir do banco de dados."""
+    return db.obter_senha_usuario(usuario)
 
 
 def usuario_tem_permissao(usuario: str, permissao: str) -> bool:
     """Informa se o usuário possui a permissão necessária para uma área."""
-    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
-    if not dados_usuario:
-        return False
-    return permissao in dados_usuario["permissoes"]
+    permissoes = db.obter_permissoes_usuario(usuario)
+    return permissao in permissoes
 
 
 def tela_login_atendente() -> bool:

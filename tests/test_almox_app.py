@@ -64,9 +64,9 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
         self.assertTrue(APP.usuario_tem_permissao("almoxarifado", "almoxarifado"))
         self.assertFalse(APP.usuario_tem_permissao("almoxarifado", "compras"))
 
-    def test_senha_de_compras_e_lida_da_variavel_de_ambiente(self) -> None:
-        with patch.dict(os.environ, {"GRM_COMPRAS_PASSWORD": "senha-de-teste"}, clear=False):
-            self.assertEqual(APP.obter_senha_configurada("compras"), "senha-de-teste")
+    def test_senha_de_compras_e_lida_do_banco(self) -> None:
+        self.assertEqual(APP.obter_senha_configurada("compras"), "Grm@2026")
+        self.assertEqual(APP.obter_senha_configurada("almoxarifado"), "Grm@2026")
 
 
 if __name__ == "__main__":
