@@ -261,10 +261,22 @@ def normalizar_itens(dados: pd.DataFrame) -> list[dict[str, Any]]:
     if itens.empty:
         return []
 
+    # Padronizar nomes das colunas para Capitalizado (Produto, Quantidade)
+    itens.columns = [str(c).capitalize() for c in itens.columns]
+
+    if "Produto" not in itens.columns:
+        return []
+
     itens["Produto"] = itens["Produto"].fillna("").astype(str).str.strip()
-    itens["Quantidade"] = pd.to_numeric(itens["Quantidade"], errors="coerce").fillna(0)
-    itens = itens[(itens["Produto"] != "") & (itens["Quantidade"] > 0)]
-    itens["Quantidade"] = itens["Quantidade"].astype(int)
+    
+    qtd_col = "Quantidade" if "Quantidade" in itens.columns else itens.columns[1] if len(itens.columns) > 1 else ""
+    if qtd_col:
+        itens["Quantidade"] = pd.to_numeric(itens[qtd_col], errors="coerce").fillna(0)
+        itens = itens[(itens["Produto"] != "") & (itens["Quantidade"] > 0)]
+        itens["Quantidade"] = itens["Quantidade"].astype(int)
+    else:
+        itens = itens[itens["Produto"] != ""]
+        
     return itens.to_dict(orient="records")
 
 
@@ -899,8 +911,8 @@ def pagina_almoxarifado() -> None:
                 cabecalho[2].markdown("**Qtd. solicitada**")
                 cabecalho[3].markdown("**Qtd. disponível**")
                 for indice, item in enumerate(solicitacao["itens"]):
-                    produto = item["Produto"]
-                    quantidade_solicitada = int(item["Quantidade"])
+                    produto = _obter_valor_item(item, "produto")
+                    quantidade_solicitada = int(_obter_valor_item(item, "quantidade", 1))
                     linha = st.columns([0.7, 2.2, 1, 1])
                     disponivel = linha[0].checkbox(
                         "Disponível",
