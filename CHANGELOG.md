@@ -2,6 +2,22 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.0.0] — 2026-07-21
+
+### Adicionado
+
+- Tela inicial redesenhada com apenas dois botões: **SOLICITANTE** e **ATENDENTE**.
+- Nova função `tela_login_atendente()`: o Atendente seleciona seu perfil (Almoxarifado ou Compras) e digita a senha antes de acessar qualquer painel.
+- Painel do Almoxarifado com resumo visual de solicitações pendentes agrupadas por empresa.
+- Controle de modo de visualização no painel do Almoxarifado: "Por empresa" ou "Todas as solicitações".
+
+### Alterado
+
+- Fluxo de acesso do Atendente unificado: login único com seleção de perfil, em vez de botões separados por setor na tela inicial.
+- Testes atualizados para refletir a nova estrutura de navegação.
+
+[1.0.0]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.0.0
+
 ## [0.11.0] — 2026-07-21
 
 ### Alterado

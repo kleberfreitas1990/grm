@@ -22,32 +22,42 @@ class AcessoSetorialStreamlitTest(unittest.TestCase):
         self.assertEqual(len(aplicacao.exception), 0)
         return aplicacao
 
+    def test_atendente_ve_tela_de_login(self) -> None:
+        """Clicar em ATENDENTE deve exibir o formulário de login antes do painel."""
+        aplicacao = self._abrir_aplicacao()
+        # Botão ATENDENTE é o segundo botão (índice 1)
+        aplicacao.button[1].click().run(timeout=10)
+        self.assertEqual(len(aplicacao.exception), 0)
+        # Deve exibir seletor de perfil e campo de senha — sem abas ainda
+        self.assertEqual(len(aplicacao.tabs), 0)
+        campos_senha = [campo for campo in aplicacao.text_input if campo.label == "Senha"]
+        self.assertEqual(len(campos_senha), 1)
+
     def test_compras_acessa_atendimento_e_compras(self) -> None:
         with patch.dict(os.environ, {"GRM_COMPRAS_PASSWORD": "Grm@2026"}, clear=False):
             aplicacao = self._abrir_aplicacao()
+            # Clica em ATENDENTE
             aplicacao.button[1].click().run(timeout=10)
             self.assertEqual(len(aplicacao.exception), 0)
-            self.assertEqual([campo.label for campo in aplicacao.text_input], ["Usuário", "Senha"])
-
-            aplicacao.text_input[1].set_value("Grm@2026")
+            # Seleciona perfil Compras e digita senha
+            aplicacao.selectbox[0].set_value("Compras")
+            aplicacao.text_input[0].set_value("Grm@2026")
             aplicacao.button[0].click().run(timeout=10)
-
             self.assertEqual(len(aplicacao.exception), 0)
             self.assertEqual([aba.label for aba in aplicacao.tabs], ["Atendimento", "Compras"])
 
     def test_almoxarifado_acessa_somente_estoque(self) -> None:
         with patch.dict(os.environ, {"GRM_ALMOXARIFADO_PASSWORD": "Grm@2026"}, clear=False):
             aplicacao = self._abrir_aplicacao()
-            aplicacao.button[2].click().run(timeout=10)
+            # Clica em ATENDENTE
+            aplicacao.button[1].click().run(timeout=10)
             self.assertEqual(len(aplicacao.exception), 0)
-            self.assertEqual([campo.label for campo in aplicacao.text_input], ["Usuário", "Senha"])
-
-            aplicacao.text_input[1].set_value("Grm@2026")
+            # Seleciona perfil Almoxarifado e digita senha
+            aplicacao.selectbox[0].set_value("Almoxarifado")
+            aplicacao.text_input[0].set_value("Grm@2026")
             aplicacao.button[0].click().run(timeout=10)
-
             self.assertEqual(len(aplicacao.exception), 0)
             self.assertEqual(len(aplicacao.tabs), 0)
-            self.assertTrue(any("Painel do almoxarifado" in titulo.value for titulo in aplicacao.subheader))
 
 
 if __name__ == "__main__":

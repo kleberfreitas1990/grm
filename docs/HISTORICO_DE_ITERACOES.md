@@ -6,6 +6,47 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 020 — Versão 1.0.0 — 21 de julho de 2026
+
+### Objetivo
+
+Redesenhar a tela inicial para exibir apenas dois perfis (SOLICITANTE e ATENDENTE), implementar tela de login unificada para o Atendente antes de liberar o painel, e aprimorar o painel do Almoxarifado com resumo de pendências por empresa, troca de modo de visualização e marcação de disponibilidade de materiais.
+
+### Prompt sanitizado
+
+> Consulte o que fizemos e ajuste a tela inicial: precisa ser com 2 opções Solicitante e Atendente; quando selecionar Atendente, carregar apenas as informações de login e só depois liberar o painel de status. No painel do almoxarifado, eles vão verificar se tem os materiais disponíveis e marcar; nesse painel ele consegue mudar o tipo de visualização de todas as solicitações; seria bom ele ver um resumo de solicitações pendentes, para saber quais empresas ele precisa selecionar. `[DADO SENSÍVEL OMITIDO]`
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Navegação | Tela inicial simplificada para dois botões: **SOLICITANTE** e **ATENDENTE**, removendo os botões separados de Compras e Almoxarifado. |
+| Autenticação | Criada a função `tela_login_atendente()` que exibe seletor de perfil (Almoxarifado / Compras) e campo de senha antes de liberar qualquer painel interno. |
+| Painel Almoxarifado | Adicionado resumo visual de solicitações pendentes agrupadas por empresa, com cards mostrando a contagem de cada empresa. |
+| Painel Almoxarifado | Adicionado controle de modo de visualização: "Por empresa" (filtra por empresa selecionada) ou "Todas as solicitações". |
+| Painel Almoxarifado | Mantida e aprimorada a tabela de marcação de disponibilidade de materiais com campos de situação (Disponível / Parcial / Indisponível). |
+| Versionamento | Atualização da versão da aplicação para `1.0.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `almox_app.py` | Reescrita das funções `main()`, `tela_login_atendente()` (nova) e `pagina_almoxarifado()`. |
+| `tests/test_interface_streamlit.py` | Atualização das asserções para refletir os dois novos botões da tela inicial. |
+| `tests/test_acesso_streamlit.py` | Atualização dos testes de acesso para o novo fluxo de login unificado via perfil ATENDENTE. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Seis testes automatizados aprovados: `test_tela_inicial_exibe_componentes_essenciais`, `test_normalizar_itens_remove_linhas_incompletas`, `test_senha_de_compras_e_lida_da_variavel_de_ambiente`, `test_status_atualiza_data_de_movimentacao`, `test_status_previstos_possuem_metadados` e `test_usuarios_setoriais_possuem_permissoes_separadas`.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.0.0`. O identificador do commit poderá ser consultado diretamente no histórico do repositório após o envio.
+
+---
+
 ## Iteração 019 — Versão 0.11.0 — 21 de julho de 2026
 
 ### Objetivo

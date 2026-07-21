@@ -1,8 +1,8 @@
 """Aplicação Streamlit para o fluxo de requisições de materiais do GRM.
 
-Versão da aplicação: 0.1.0
-Os dados desta versão ficam na sessão do navegador, para demonstrar o fluxo
-antes da integração com uma base de dados e autenticação corporativa.
+Versão da aplicação: 1.0.0
+Os dados são persistidos em banco de dados SQLite para garantir que as
+solicitações não se percam ao reiniciar a aplicação.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.11.0"
+APP_VERSION = "1.0.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -67,6 +67,7 @@ def enviar_email_notificacao(assunto: str, corpo: str) -> bool:
     except Exception as e:
         st.error(f"Erro ao enviar e-mail: {e}")
         return False
+
 EMPRESAS = [
     "Selecione uma empresa",
     "214 - Ankara - tunas, Paraná",
@@ -83,6 +84,7 @@ EMPRESAS = [
     "225 - Jade - Jaguarari, Bahia",
     "226 - Nacarado/ Sky pearl/ Montebello - Massapê, CE",
 ]
+
 STATUS_META = {
     "Aguardando triagem": ("#F59E0B", "Solicitação registrada e aguardando atendimento."),
     "Em análise no almoxarifado": ("#2563EB", "Estoque em verificação pelo almoxarifado."),
@@ -98,7 +100,7 @@ def configurar_pagina() -> None:
         page_title="GRM | Gestão de Requisições de Materiais",
         page_icon="📦",
         layout="wide",
-        initial_sidebar_state="expanded",
+        initial_sidebar_state="collapsed",
     )
     st.markdown(
         """
@@ -114,6 +116,7 @@ def configurar_pagina() -> None:
                 .metric-card { min-height: auto; padding: 0.8rem; }
                 .metric-card .value { font-size: 1.4rem; }
                 .flow-step { min-height: auto; padding: 0.8rem; margin-bottom: 10px; }
+                .btn-perfil-container { flex-direction: column !important; }
             }
 
             /* Estilos para Desktop e Tablets */
@@ -176,10 +179,19 @@ def configurar_pagina() -> None:
             .flow-step span { color: #64748B; font-size: .78rem; }
             .small-note { color: #64748B; font-size: .83rem; }
 
-            /* Sidebar Desktop */
-            div[data-testid="stSidebar"] { background: #0F2538; }
-            div[data-testid="stSidebar"] * { color: #F8FAFC; }
-            div[data-testid="stSidebar"] .stCaption { color: #CBD5E1 !important; }
+            /* Resumo de pendências por empresa */
+            .empresa-card {
+                background: white;
+                border: 1px solid #E2E8F0;
+                border-left: 5px solid #2563EB;
+                border-radius: 10px;
+                padding: 0.8rem 1rem;
+                margin-bottom: 0.6rem;
+                box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+            }
+            .empresa-card .empresa-nome { font-weight: 700; color: #0F172A; font-size: 1rem; }
+            .empresa-card .empresa-qtd { color: #2563EB; font-weight: 800; font-size: 1.2rem; }
+            .empresa-card .empresa-label { color: #64748B; font-size: .8rem; }
 
             /* Melhoria nos Formulários Mobile */
             @media (max-width: 768px) {
@@ -250,21 +262,25 @@ def renderizar_cabecalho() -> None:
     st.markdown(
         """
         <section class="grm-hero">
-          <h1>Gestão de Requisições de Materiais</h1>
+          <h1>📦 Gestão de Requisições de Materiais</h1>
           <p>Registre, direcione e acompanhe solicitações entre o atendimento, o almoxarifado e as compras.</p>
         </section>
         """,
         unsafe_allow_html=True,
     )
 
-    total = len(st.session_state.solicitacoes)
-    triagem = sum(item["status"] == "Aguardando triagem" for item in st.session_state.solicitacoes)
-    almoxarifado = sum(item["status"] == "Em análise no almoxarifado" for item in st.session_state.solicitacoes)
-    compras = sum(item["status"] in {"Em processo de compra", "Compra solicitada"} for item in st.session_state.solicitacoes)
+    # Recarregar solicitações do banco para ter dados atualizados
+    solicitacoes = db.carregar_todas()
+    st.session_state.solicitacoes = solicitacoes
+
+    total = len(solicitacoes)
+    triagem = sum(item["status"] == "Aguardando triagem" for item in solicitacoes)
+    almoxarifado = sum(item["status"] == "Em análise no almoxarifado" for item in solicitacoes)
+    compras = sum(item["status"] in {"Em processo de compra", "Compra solicitada"} for item in solicitacoes)
 
     colunas = st.columns(4)
     dados = [
-        ("Solicitações", total, "registradas nesta sessão"),
+        ("Solicitações", total, "total no sistema"),
         ("Aguardando triagem", triagem, "pendentes de atendimento"),
         ("No almoxarifado", almoxarifado, "em verificação de estoque"),
         ("Em compras", compras, "em processo de aquisição"),
@@ -275,25 +291,6 @@ def renderizar_cabecalho() -> None:
             f'<div class="value">{valor}</div><div class="caption">{legenda}</div></div>',
             unsafe_allow_html=True,
         )
-
-
-def renderizar_fluxo() -> None:
-    """Exibe a tradução resumida do fluxo que originou a tela."""
-    with st.expander("Visualizar fluxo de atendimento", expanded=False):
-        colunas = st.columns(5)
-        etapas = [
-            ("1", "Solicitante", "Seleciona a empresa e informa itens."),
-            ("2", "Gravar", "Gera protocolo e aguarda triagem."),
-            ("3", "Atendente", "Valida o acesso e direciona a demanda."),
-            ("4", "Setor", "Almoxarifado consulta estoque ou compras registra aquisição."),
-            ("5", "Acompanhar", "Solicitante consulta a evolução do protocolo."),
-        ]
-        for coluna, (numero, titulo, texto) in zip(colunas, etapas):
-            coluna.markdown(
-                f'<div class="flow-step"><span class="number">{numero}</span>'
-                f'<strong>{titulo}</strong><span>{texto}</span></div>',
-                unsafe_allow_html=True,
-            )
 
 
 def pagina_nova_solicitacao_simplificada() -> None:
@@ -324,12 +321,12 @@ def pagina_nova_solicitacao_simplificada() -> None:
                 item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
 
         # Botão de adicionar material fica logo abaixo do último material
-        adicionar = st.form_submit_button("Adicionar outro material")
+        adicionar = st.form_submit_button("➕ Adicionar outro material")
 
         st.write("---")
         observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")
 
-        gravar = st.form_submit_button("ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
+        gravar = st.form_submit_button("✅ ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
 
     if adicionar:
         st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
@@ -374,7 +371,7 @@ def pagina_nova_solicitacao_simplificada() -> None:
             "dados_compra": {},
         }
         db.salvar_solicitacao(solicitacao)
-        st.session_state.solicitacoes.append(solicitacao)
+        st.session_state.solicitacoes = db.carregar_todas()
         st.session_state.ultimo_protocolo = protocolo
 
         # Limpar a lista de materiais após o envio
@@ -403,7 +400,7 @@ def pagina_acompanhar_status() -> None:
         if consultar:
             solicitacao = localizar_solicitacao(protocolo.strip().upper())
             if not solicitacao:
-                st.warning("Nenhuma solicitação foi encontrada com esse protocolo nesta sessão.")
+                st.warning("Nenhuma solicitação foi encontrada com esse protocolo.")
                 return
 
             exibir_detalhes_solicitacao(solicitacao)
@@ -413,9 +410,10 @@ def pagina_acompanhar_status() -> None:
         filtrar = st.button("Filtrar solicitações", type="primary")
 
         if filtrar:
-            solicitacoes = [s for s in st.session_state.solicitacoes if s['empresa'] == empresa_selecionada]
+            solicitacoes = db.carregar_todas()
+            solicitacoes = [s for s in solicitacoes if s['empresa'] == empresa_selecionada]
             if not solicitacoes:
-                st.warning(f"Nenhuma solicitação encontrada para {empresa_selecionada} nesta sessão.")
+                st.warning(f"Nenhuma solicitação encontrada para {empresa_selecionada}.")
                 return
 
             for solicitacao in solicitacoes:
@@ -459,6 +457,7 @@ def exibir_detalhes_solicitacao(solicitacao: dict) -> None:
         if dados.get("observacao"):
             st.write(f"**Observação:** {dados['observacao']}")
 
+
 def obter_senha_configurada(usuario: str) -> str | None:
     """Obtém a senha de um usuário a partir de configuração segura."""
     dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
@@ -485,41 +484,70 @@ def usuario_tem_permissao(usuario: str, permissao: str) -> bool:
     return permissao in dados_usuario["permissoes"]
 
 
-def autenticar_usuario(usuario: str) -> bool:
-    """Valida a senha de um usuário configurado sem expor a credencial."""
-    if st.session_state.usuario_autenticado == usuario:
+def tela_login_atendente() -> bool:
+    """
+    Exibe a tela de login unificada para o Atendente.
+    O usuário escolhe seu perfil (Compras ou Almoxarifado) e digita a senha.
+    Retorna True se autenticado com sucesso.
+    """
+    if st.session_state.usuario_autenticado in ("compras", "almoxarifado"):
         return True
 
-    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
-    senha_esperada = obter_senha_configurada(usuario)
-    if not dados_usuario or not senha_esperada:
-        st.error("Acesso indisponível. Solicite ao administrador a configuração desta conta.")
-        return False
+    st.markdown(
+        """
+        <section class="grm-hero">
+          <h1>🔐 Acesso do Atendente</h1>
+          <p>Selecione seu perfil e informe a senha para acessar o painel.</p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
 
-    with st.form(f"formulario_login_{usuario}"):
-        st.text_input("Usuário", value=usuario, disabled=True)
-        senha_informada = st.text_input("Senha", type="password")
-        acessar = st.form_submit_button("Entrar", type="primary")
+    with st.form("formulario_login_atendente"):
+        perfil_login = st.selectbox(
+            "Qual é o seu perfil?",
+            ["Selecione...", "Almoxarifado", "Compras"],
+        )
+        senha_informada = st.text_input("Senha", type="password", placeholder="Digite a senha de acesso")
+        acessar = st.form_submit_button("Entrar", type="primary", width="stretch")
 
     if acessar:
+        if perfil_login == "Selecione...":
+            st.error("Por favor, selecione o seu perfil antes de continuar.")
+            return False
+
+        usuario_chave = perfil_login.lower()
+        senha_esperada = obter_senha_configurada(usuario_chave)
+
+        if not senha_esperada:
+            st.error("Acesso indisponível. Solicite ao administrador a configuração desta conta.")
+            return False
+
         if not hmac.compare_digest(senha_informada, senha_esperada):
             st.error("Senha inválida. Verifique os dados e tente novamente.")
-        else:
-            st.session_state.usuario_autenticado = usuario
-            st.rerun()
+            return False
+
+        st.session_state.usuario_autenticado = usuario_chave
+        st.rerun()
+
+    st.markdown("---")
+    if st.button("← Voltar para a tela inicial"):
+        st.session_state.perfil = ""
+        st.rerun()
+
     return False
 
 
 def pagina_atendimento() -> None:
     """Apresenta a triagem que direciona solicitações ao setor responsável."""
     st.subheader("Atendimento e triagem")
-    st.write("Após validar a senha, o atendente analisa a solicitação e encaminha para o almoxarifado ou para compras.")
+    st.write("Analise a solicitação e encaminhe para o almoxarifado ou para compras.")
 
-    st.caption("Acesso exclusivo do usuário suprimentos.")
-
+    # Recarregar solicitações do banco
+    st.session_state.solicitacoes = db.carregar_todas()
     pendentes = [item for item in st.session_state.solicitacoes if item["status"] == "Aguardando triagem"]
     if not pendentes:
-        st.info("Não há solicitações aguardando triagem nesta sessão.")
+        st.info("Não há solicitações aguardando triagem no momento.")
         return
 
     opcoes = {
@@ -562,7 +590,7 @@ def pagina_atendimento() -> None:
         <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
         <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
         <p><strong>Setor Destino:</strong> {destino}</p>
-        <p><strong>Usuário de compras:</strong> {st.session_state.usuario_autenticado}</p>
+        <p><strong>Usuário:</strong> {st.session_state.usuario_autenticado}</p>
         <h4>Itens:</h4>
         {itens_html}
         """
@@ -571,24 +599,99 @@ def pagina_atendimento() -> None:
 
 
 def pagina_almoxarifado() -> None:
-    """Permite verificar os itens encaminhados ao almoxarifado."""
-    st.subheader("Painel do almoxarifado")
-    st.write("Registre a disponibilidade dos produtos e conclua o retorno para a solicitação encaminhada.")
+    """Painel do almoxarifado com resumo de pendências e verificação de estoque."""
 
-    solicitacoes = [item for item in st.session_state.solicitacoes if item["status"] == "Em análise no almoxarifado"]
-    if not solicitacoes:
-        st.info("Não há solicitações em análise no almoxarifado nesta sessão.")
+    # Recarregar solicitações do banco
+    st.session_state.solicitacoes = db.carregar_todas()
+    solicitacoes_pendentes = [
+        item for item in st.session_state.solicitacoes
+        if item["status"] == "Em análise no almoxarifado"
+    ]
+
+    # --- RESUMO DE PENDÊNCIAS POR EMPRESA ---
+    st.markdown("### 📊 Resumo de solicitações pendentes")
+    if not solicitacoes_pendentes:
+        st.info("Não há solicitações em análise no almoxarifado no momento.")
+    else:
+        # Agrupar por empresa
+        contagem_por_empresa: dict[str, int] = {}
+        for s in solicitacoes_pendentes:
+            empresa = s["empresa"]
+            contagem_por_empresa[empresa] = contagem_por_empresa.get(empresa, 0) + 1
+
+        st.caption(f"Total de solicitações pendentes: **{len(solicitacoes_pendentes)}** em **{len(contagem_por_empresa)}** empresa(s)")
+
+        # Exibir cards por empresa
+        cols = st.columns(min(len(contagem_por_empresa), 3))
+        for idx, (empresa, qtd) in enumerate(sorted(contagem_por_empresa.items())):
+            col = cols[idx % len(cols)]
+            with col:
+                st.markdown(
+                    f"""
+                    <div class="empresa-card">
+                        <div class="empresa-nome">{escape(empresa)}</div>
+                        <div class="empresa-qtd">{qtd}</div>
+                        <div class="empresa-label">solicitação(ões) pendente(s)</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown("---")
+
+    # --- PAINEL DE ATENDIMENTO ---
+    st.markdown("### 🔍 Verificar e atender solicitação")
+
+    if not solicitacoes_pendentes:
+        return
+
+    # Modo de visualização
+    modo_visualizacao = st.radio(
+        "Modo de visualização",
+        ["Por empresa", "Todas as solicitações"],
+        horizontal=True,
+        key="modo_viz_almox",
+    )
+
+    if modo_visualizacao == "Por empresa":
+        empresas_com_pendencia = sorted(set(s["empresa"] for s in solicitacoes_pendentes))
+        empresa_filtro = st.selectbox(
+            "Selecione a empresa para ver as solicitações",
+            empresas_com_pendencia,
+            key="empresa_filtro_almox",
+        )
+        solicitacoes_filtradas = [s for s in solicitacoes_pendentes if s["empresa"] == empresa_filtro]
+    else:
+        solicitacoes_filtradas = solicitacoes_pendentes
+
+    if not solicitacoes_filtradas:
+        st.info("Nenhuma solicitação encontrada para o filtro selecionado.")
         return
 
     opcoes = {
-        f"{item['protocolo']} — {item['empresa']} — prioridade {item['prioridade']}": item["protocolo"]
-        for item in solicitacoes
+        f"{item['protocolo']} — {item['empresa']} — {item['solicitante']}": item["protocolo"]
+        for item in solicitacoes_filtradas
     }
-    selecao = st.selectbox("Solicitação encaminhada ao almoxarifado", list(opcoes), key="selecionar_almoxarifado")
+    selecao = st.selectbox(
+        "Selecione a solicitação para atender",
+        list(opcoes),
+        key="selecionar_almoxarifado",
+    )
     solicitacao = localizar_solicitacao(opcoes[selecao])
     assert solicitacao is not None
 
-    st.caption(f"Solicitante: {solicitacao['solicitante']} | Triagem: {solicitacao.get('triado_por', 'Não registrada')}")
+    st.caption(
+        f"Solicitante: **{solicitacao['solicitante']}** | "
+        f"Empresa: **{solicitacao['empresa']}** | "
+        f"Triagem por: {solicitacao.get('triado_por', 'Não registrada')}"
+    )
+
+    if solicitacao.get("observacao_triagem"):
+        st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
+
+    st.markdown("#### Marcar disponibilidade dos materiais")
+    st.caption("Informe a quantidade disponível e a situação de cada item.")
+
     estoque_inicial = pd.DataFrame(
         [
             {
@@ -606,21 +709,34 @@ def pagina_almoxarifado() -> None:
             "Produto": st.column_config.TextColumn(disabled=True),
             "Qtd. solicitada": st.column_config.NumberColumn(disabled=True),
             "Qtd. disponível": st.column_config.NumberColumn(min_value=0, step=1),
-            "Situação": st.column_config.SelectboxColumn("Situação", options=["Disponível", "Parcial", "Indisponível"]),
+            "Situação": st.column_config.SelectboxColumn(
+                "Situação",
+                options=["Disponível", "Parcial", "Indisponível"],
+            ),
         },
         hide_index=True,
         width="stretch",
         key=f"estoque_{solicitacao['protocolo']}",
     )
-    observacao = st.text_area("Observação do almoxarifado", key=f"obs_estoque_{solicitacao['protocolo']}")
+    observacao = st.text_area(
+        "Observação do almoxarifado (opcional)",
+        key=f"obs_estoque_{solicitacao['protocolo']}",
+        placeholder="Informe detalhes sobre a disponibilidade ou prazo de reposição.",
+    )
+
     acao, _ = st.columns([1, 2])
-    if acao.button("Confirmar retorno de estoque", type="primary", width="stretch"):
+    if acao.button("✅ Confirmar retorno de estoque", type="primary", width="stretch"):
         solicitacao["estoque"] = disponibilidade.to_dict(orient="records")
         solicitacao["observacao_almoxarifado"] = observacao.strip()
         atualizar_status(solicitacao, "Atendido pelo almoxarifado")
         st.success(f"Disponibilidade registrada para {solicitacao['protocolo']}.")
 
-        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>" for item in disponibilidade.to_dict(orient='records')]) + "</ul>"
+        itens_html = "<ul>" + "".join(
+            [
+                f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>"
+                for item in disponibilidade.to_dict(orient="records")
+            ]
+        ) + "</ul>"
         corpo_email = f"""
         <h3>Retorno do Almoxarifado</h3>
         <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
@@ -639,9 +755,11 @@ def pagina_compras() -> None:
     st.subheader("Painel de compras")
     st.write("Registre os dados que apoiarão a cotação ou a aquisição dos itens solicitados.")
 
+    # Recarregar solicitações do banco
+    st.session_state.solicitacoes = db.carregar_todas()
     solicitacoes = [item for item in st.session_state.solicitacoes if item["status"] == "Em processo de compra"]
     if not solicitacoes:
-        st.info("Não há solicitações aguardando tratamento pelo setor de compras nesta sessão.")
+        st.info("Não há solicitações aguardando tratamento pelo setor de compras no momento.")
         return
 
     opcoes = {
@@ -692,49 +810,55 @@ def pagina_compras() -> None:
         st.rerun()
 
 
-
 def main() -> None:
     configurar_pagina()
     inicializar_estado()
 
     st.session_state.setdefault("perfil", "")
 
+    # ─── TELA INICIAL: apenas SOLICITANTE e ATENDENTE ────────────────────────
     if st.session_state.perfil == "":
-        st.title("Gestão de Requisições de Materiais")
-        st.write("Selecione seu acesso para continuar:")
+        st.markdown(
+            """
+            <section class="grm-hero">
+              <h1>📦 GRM — Gestão de Requisições de Materiais</h1>
+              <p>Selecione o seu acesso para continuar.</p>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
 
-        col_solicitante, col_compras, col_almoxarifado = st.columns(3)
+        col_solicitante, col_atendente = st.columns(2)
 
         with col_solicitante:
-            if st.button("SOLICITANTE", type="primary", width="stretch"):
+            if st.button("👤  SOLICITANTE", type="primary", width="stretch"):
                 st.session_state.perfil = "solicitante"
                 st.rerun()
+            st.caption("Faça uma nova solicitação ou acompanhe o status de uma existente.")
 
-        with col_compras:
-            if st.button("COMPRAS", type="secondary", width="stretch"):
-                st.session_state.perfil = "compras"
+        with col_atendente:
+            if st.button("🔐  ATENDENTE", type="secondary", width="stretch"):
+                st.session_state.perfil = "atendente"
                 st.rerun()
-
-        with col_almoxarifado:
-            if st.button("ALMOXARIFADO", type="secondary", width="stretch"):
-                st.session_state.perfil = "almoxarifado"
-                st.rerun()
+            st.caption("Acesse o painel de triagem, almoxarifado ou compras.")
 
         st.markdown("---")
         st.caption("Versão da aplicação: " + APP_VERSION)
         return
 
+    # ─── PERFIL: SOLICITANTE ─────────────────────────────────────────────────
     if st.session_state.perfil == "solicitante":
         st.session_state.setdefault("modo_solicitante", "form")
 
         if st.session_state.modo_solicitante == "form":
             st.subheader("Nova solicitação de materiais")
             pagina_nova_solicitacao_simplificada()
-            if st.button("Verificar o status das minhas solicitações"):
+            st.markdown("---")
+            if st.button("🔍 Verificar o status das minhas solicitações"):
                 st.session_state.modo_solicitante = "status"
                 st.rerun()
 
-            if st.button("Voltar para a tela inicial"):
+            if st.button("← Voltar para a tela inicial"):
                 st.session_state.perfil = ""
                 st.session_state.modo_solicitante = "form"
                 st.rerun()
@@ -742,38 +866,37 @@ def main() -> None:
         else:
             st.subheader("Acompanhar status")
             pagina_acompanhar_status()
-            if st.button("Voltar para Nova solicitação"):
+            st.markdown("---")
+            if st.button("← Voltar para Nova solicitação"):
                 st.session_state.modo_solicitante = "form"
                 st.rerun()
-            if st.button("Voltar para a tela inicial"):
+            if st.button("← Voltar para a tela inicial"):
                 st.session_state.perfil = ""
                 st.session_state.modo_solicitante = "form"
                 st.rerun()
 
-    elif st.session_state.perfil == "compras":
-        if not autenticar_usuario("compras"):
+    # ─── PERFIL: ATENDENTE (login unificado) ─────────────────────────────────
+    elif st.session_state.perfil == "atendente":
+        # Exige login antes de qualquer painel
+        if not tela_login_atendente():
             return
 
+        # Após autenticação, exibe o painel correspondente ao perfil logado
+        usuario = st.session_state.usuario_autenticado
         renderizar_cabecalho()
-        aba_atendimento, aba_compras = st.tabs(["Atendimento", "Compras"])
-        with aba_atendimento:
-            pagina_atendimento()
-        with aba_compras:
-            pagina_compras()
 
-        if st.button("Sair", width="stretch"):
-            st.session_state.perfil = ""
-            st.session_state.usuario_autenticado = ""
-            st.rerun()
+        if usuario == "compras":
+            aba_atendimento, aba_compras = st.tabs(["Atendimento", "Compras"])
+            with aba_atendimento:
+                pagina_atendimento()
+            with aba_compras:
+                pagina_compras()
 
-    elif st.session_state.perfil == "almoxarifado":
-        if not autenticar_usuario("almoxarifado"):
-            return
+        elif usuario == "almoxarifado":
+            pagina_almoxarifado()
 
-        renderizar_cabecalho()
-        pagina_almoxarifado()
-
-        if st.button("Sair", width="stretch"):
+        st.markdown("---")
+        if st.button("🚪 Sair", width="stretch"):
             st.session_state.perfil = ""
             st.session_state.usuario_autenticado = ""
             st.rerun()
