@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.2.1"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -274,16 +274,16 @@ def renderizar_cabecalho() -> None:
     st.session_state.solicitacoes = solicitacoes
 
     total = len(solicitacoes)
-    triagem = sum(item["status"] == "Aguardando triagem" for item in solicitacoes)
     almoxarifado = sum(item["status"] == "Em análise no almoxarifado" for item in solicitacoes)
-    compras = sum(item["status"] in {"Em processo de compra", "Compra solicitada"} for item in solicitacoes)
+    compras = sum(item["status"] in {"Em processo de compra", "Compra solicitada", "Comprado", "Em processo de autorização"} for item in solicitacoes)
+    finalizados = sum(item["status"] == "Atendido pelo almoxarifado" for item in solicitacoes)
 
     colunas = st.columns(4)
     dados = [
         ("Solicitações", total, "total no sistema"),
-        ("Aguardando triagem", triagem, "pendentes de atendimento"),
         ("No almoxarifado", almoxarifado, "em verificação de estoque"),
         ("Em compras", compras, "em processo de aquisição"),
+        ("Finalizados", finalizados, "atendidos"),
     ]
     for coluna, (rotulo, valor, legenda) in zip(colunas, dados):
         coluna.markdown(

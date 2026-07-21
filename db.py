@@ -32,7 +32,7 @@ def _init_engine():
                 pass
                 
             # Força o uso do PyMySQL explicitamente
-            conn = st.connection("tidb", type="sql", dialect="mysql", driver="pymysql")
+            conn = st.connection("tidb", type="sql")
             return conn, False
     except Exception as e:
         # Se houver segredos mas a conexão falhar, reportamos o erro no log
