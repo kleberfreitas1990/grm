@@ -23,9 +23,18 @@ def _init_engine():
     # Verifica se há segredos de TiDB configurados no Streamlit
     try:
         import streamlit as st
-        conn = st.connection("tidb", type="sql")
+        # Tenta injetar o PyMySQL como driver padrão do mysql
+        try:
+            import pymysql
+            pymysql.install_as_MySQLdb()
+        except ImportError:
+            pass
+            
+        # Força o uso do PyMySQL explicitamente
+        conn = st.connection("tidb", type="sql", dialect="mysql", driver="pymysql")
         return conn, False
     except Exception:
+        # Fallback silencioso para SQLite se falhar
         pass
 
     # Fallback: SQLite local (para desenvolvimento)

@@ -1,5 +1,4 @@
-streamlit==1.59.2
-pandas>=2.3.3,<3.0
-SQLAlchemy>=2.0,<3.0
-PyMySQL>=1.1,<2.0
-mysqlclient>=2.2,<3.0
+streamlit>=1.35.0
+pandas>=2.0.0
+SQLAlchemy>=2.0.0
+PyMySQL>=1.1.0
