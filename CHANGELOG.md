@@ -2,6 +2,23 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.6.0] — 2026-07-21
+
+### Adicionado
+
+- Notificações automáticas por e-mail em **todos os eventos** do fluxo operacional:
+  - Nova solicitação criada pelo solicitante.
+  - Encaminhamento de triagem (Almoxarifado ou Compras).
+  - Conferência de estoque concluída (disponível ou encaminhado para compras).
+  - Andamento de compra registrado (em autorização ou comprado).
+  - Recebimento físico no almoxarifado.
+  - Envio do material ao solicitante.
+- Leitura de credenciais SMTP diretamente do `st.secrets` (Streamlit Cloud) com fallback para variáveis de ambiente.
+- Destinatário de notificações atualizado para `pedreira.info@gramazini.com.br`.
+- Templates HTML coloridos e informativos para cada tipo de notificação.
+
+[1.6.0]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.6.0
+
 ## [1.5.0] — 2026-07-21
 
 ### Adicionado

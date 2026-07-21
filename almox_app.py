@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.5.0"
+APP_VERSION = "1.6.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -39,29 +39,43 @@ USUARIOS_CONFIGURADOS: dict[str, dict[str, Any]] = {
     },
 }
 
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-SMTP_USER = os.getenv("SMTP_USER")
-SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-NOTIFICATION_EMAIL = "pedreira.azulimperial@gramazini.com.br"
+def _ler_secret(chave: str, padrao: str = "") -> str:
+    """Lê credencial do st.secrets (Streamlit Cloud) com fallback para variável de ambiente."""
+    try:
+        return str(st.secrets[chave])
+    except Exception:
+        return os.getenv(chave, padrao)
+
+
+def _obter_config_smtp():
+    """Retorna tupla (host, port, user, password, notification_email) lendo do st.secrets ou env."""
+    host = _ler_secret("SMTP_HOST", "smtp.gmail.com")
+    port = int(_ler_secret("SMTP_PORT", "587"))
+    user = _ler_secret("SMTP_USER", "")
+    password = _ler_secret("SMTP_PASSWORD", "")
+    notification_email = _ler_secret("NOTIFICATION_EMAIL", "pedreira.info@gramazini.com.br")
+    return host, port, user, password, notification_email
+
 
 def enviar_email_notificacao(assunto: str, corpo: str) -> bool:
-    if not SMTP_USER or not SMTP_PASSWORD:
-        st.error("Credenciais SMTP não configuradas. O e-mail não será enviado.")
+    smtp_host, smtp_port, smtp_user, smtp_password, notification_email = _obter_config_smtp()
+
+    if not smtp_user or not smtp_password:
+        st.warning("Credenciais SMTP não configuradas. O e-mail não será enviado.")
         return False
 
     try:
-        msg = MIMEMultipart()
-        msg['From'] = SMTP_USER
-        msg['To'] = NOTIFICATION_EMAIL
-        msg['Subject'] = f"[GRM] {assunto}"
-        msg.attach(MIMEText(corpo, 'html'))
+        msg = MIMEMultipart("alternative")
+        msg["From"] = smtp_user
+        msg["To"] = notification_email
+        msg["Subject"] = f"[GRM] {assunto}"
+        msg.attach(MIMEText(corpo, "html", "utf-8"))
 
         context = ssl.create_default_context()
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
             server.ehlo()
             server.starttls(context=context)
-            server.login(SMTP_USER, SMTP_PASSWORD)
+            server.login(smtp_user, smtp_password)
             server.send_message(msg)
         return True
     except Exception as e:
@@ -418,6 +432,22 @@ def pagina_nova_solicitacao_simplificada() -> None:
 
         # Limpar a lista de materiais após o envio
         st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
+
+        # Notificar por e-mail sobre nova solicitação
+        itens_html = "<ul>" + "".join([f"<li>{escape(item['Produto'])} - Qtd: {item['Quantidade']}</li>" for item in itens]) + "</ul>"
+        corpo_nova = f"""
+        <h3 style="color:#2563EB;">&#128230; Nova Solicitação de Materiais</h3>
+        <p><strong>Protocolo:</strong> {escape(protocolo)}</p>
+        <p><strong>Empresa:</strong> {escape(empresa)}</p>
+        <p><strong>Solicitante:</strong> {escape(solicitante.strip())}</p>
+        <p><strong>Setor:</strong> {escape(setor_solicitante.strip() or 'Não informado')}</p>
+        <p><strong>Data/Hora:</strong> {agora.strftime('%d/%m/%Y às %H:%M')}</p>
+        <h4>Itens solicitados:</h4>
+        {itens_html}
+        <p><strong>Observação:</strong> {escape(observacao.strip() or 'Nenhuma')}</p>
+        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+        """
+        enviar_email_notificacao(f"Nova solicitação: {protocolo}", corpo_nova)
 
         st.balloons()
         st.success(f"Sua solicitação foi enviada com sucesso! Anote este código para acompanhar depois: **{protocolo}**")
@@ -781,16 +811,18 @@ def pagina_atendimento() -> None:
         )
         st.success(f"{solicitacao['protocolo']} encaminhada para {destino.lower()}.")
 
-        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+        itens_html = "<ul>" + "".join([f"<li>{escape(item['Produto'])} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
         corpo_email = f"""
-        <h3>Solicitação Encaminhada</h3>
-        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-        <p><strong>Setor Destino:</strong> {destino}</p>
-        <p><strong>Usuário:</strong> {st.session_state.usuario_autenticado}</p>
+        <h3 style="color:#EA580C;">&#128260; Solicitação Encaminhada para {escape(destino)}</h3>
+        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+        <p><strong>Solicitante:</strong> {escape(solicitacao['solicitante'])}</p>
+        <p><strong>Setor Destino:</strong> {escape(destino)}</p>
+        <p><strong>Triado por:</strong> {escape(st.session_state.usuario_autenticado)}</p>
+        <p><strong>Justificativa:</strong> {escape(justificativa.strip() or 'Não informada')}</p>
         <h4>Itens:</h4>
         {itens_html}
+        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
         """
         enviar_email_notificacao(f"Encaminhamento: {solicitacao['protocolo']}", corpo_email)
         st.rerun()
@@ -893,6 +925,7 @@ def pagina_almoxarifado() -> None:
                     tem_falta = any(item["Qtd. disponível"] < item["Qtd. solicitada"] for item in itens_conferidos)
                     solicitacao["estoque"] = itens_conferidos
                     solicitacao["observacao_almoxarifado"] = observacao.strip()
+                    itens_estoque_html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'><tr><th>Produto</th><th>Solicitado</th><th>Disponível</th><th>Situação</th></tr>" + "".join([f"<tr><td>{escape(str(it['Produto']))}</td><td>{it['Qtd. solicitada']}</td><td>{it['Qtd. disponível']}</td><td>{escape(str(it['Situação']))}</td></tr>" for it in itens_conferidos]) + "</table>"
                     if tem_falta:
                         solicitacao["destino"] = "Compras"
                         atualizar_status(
@@ -902,6 +935,18 @@ def pagina_almoxarifado() -> None:
                             observacao or "Item indisponível ou parcial; encaminhado para compras.",
                         )
                         st.success(f"{solicitacao['protocolo']} foi encaminhada para Compras.")
+                        corpo_estoque = f"""
+                        <h3 style="color:#EA580C;">&#128230; Conferência de Estoque — Encaminhado para Compras</h3>
+                        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+                        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+                        <p><strong>Solicitante:</strong> {escape(solicitacao['solicitante'])}</p>
+                        <p><strong>Conferido por:</strong> {escape(st.session_state.usuario_autenticado)}</p>
+                        <p><strong>Observação:</strong> {escape(observacao or 'Não informada')}</p>
+                        <h4>Resultado da conferência:</h4>
+                        {itens_estoque_html}
+                        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+                        """
+                        enviar_email_notificacao(f"Estoque: {solicitacao['protocolo']} → Compras", corpo_estoque)
                     else:
                         solicitacao["destino"] = "Almoxarifado"
                         atualizar_status(
@@ -911,6 +956,18 @@ def pagina_almoxarifado() -> None:
                             observacao or "Todos os itens estão disponíveis para envio.",
                         )
                         st.success(f"{solicitacao['protocolo']} está pronta para envio ao solicitante.")
+                        corpo_estoque = f"""
+                        <h3 style="color:#16A34A;">&#9989; Conferência de Estoque — Itens Disponíveis</h3>
+                        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+                        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+                        <p><strong>Solicitante:</strong> {escape(solicitacao['solicitante'])}</p>
+                        <p><strong>Conferido por:</strong> {escape(st.session_state.usuario_autenticado)}</p>
+                        <p><strong>Observação:</strong> {escape(observacao or 'Não informada')}</p>
+                        <h4>Resultado da conferência:</h4>
+                        {itens_estoque_html}
+                        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+                        """
+                        enviar_email_notificacao(f"Estoque: {solicitacao['protocolo']} → Pronto para envio", corpo_estoque)
                     st.rerun()
 
     st.markdown("---")
@@ -951,6 +1008,18 @@ def pagina_almoxarifado() -> None:
                             observacao or "Compra recebida fisicamente no almoxarifado.",
                         )
                         st.success(f"Recebimento de {solicitacao['protocolo']} registrado. Material disponível para envio.")
+                        corpo_recebimento = f"""
+                        <h3 style="color:#0891B2;">&#128230; Material Recebido no Almoxarifado</h3>
+                        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+                        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+                        <p><strong>Solicitante:</strong> {escape(solicitacao['solicitante'])}</p>
+                        <p><strong>Recebido por:</strong> {escape(recebido_por.strip())}</p>
+                        <p><strong>Data/Hora:</strong> {escape(_combinar_data_hora(data_recebimento, hora_recebimento))}</p>
+                        <p><strong>Documento:</strong> {escape(documento.strip() or 'Não informado')}</p>
+                        <p><strong>Observação:</strong> {escape(observacao or 'Não informada')}</p>
+                        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+                        """
+                        enviar_email_notificacao(f"Recebimento: {solicitacao['protocolo']}", corpo_recebimento)
                         st.rerun()
 
     st.markdown("---")
@@ -990,6 +1059,21 @@ def pagina_almoxarifado() -> None:
                             observacao or f"Material enviado para {destinatario.strip()}.",
                         )
                         st.success(f"Envio de {solicitacao['protocolo']} registrado com sucesso.")
+                        itens_html_envio = "<ul>" + "".join([f"<li>{escape(item['Produto'])} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+                        corpo_envio = f"""
+                        <h3 style="color:#16A34A;">&#9989; Material Enviado ao Solicitante</h3>
+                        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+                        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+                        <p><strong>Solicitante / Destinatário:</strong> {escape(destinatario.strip())}</p>
+                        <p><strong>Enviado por:</strong> {escape(enviado_por.strip())}</p>
+                        <p><strong>Data/Hora:</strong> {escape(_combinar_data_hora(data_envio, hora_envio))}</p>
+                        <p><strong>Modalidade:</strong> {escape(modalidade)}</p>
+                        <p><strong>Observação:</strong> {escape(observacao or 'Não informada')}</p>
+                        <h4>Itens entregues:</h4>
+                        {itens_html_envio}
+                        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+                        """
+                        enviar_email_notificacao(f"Envio concluído: {solicitacao['protocolo']}", corpo_envio)
                         st.rerun()
 
 
@@ -1045,6 +1129,25 @@ def pagina_compras() -> None:
             mensagem = "A compra permanece em processo de autorização."
         atualizar_status(solicitacao, proximo_status, responsavel.strip() or "compras", observacao)
         st.success(f"{solicitacao['protocolo']}: {mensagem}")
+        itens_html_compra = "<ul>" + "".join([f"<li>{escape(str(item.get('Produto', item.get('produto', ''))))}</li>" for item in solicitacao['itens']]) + "</ul>"
+        cor_compra = "#16A34A" if status_compra == "Comprado" else "#EA580C"
+        icone_compra = "&#9989;" if status_compra == "Comprado" else "&#128203;"
+        corpo_compra = f"""
+        <h3 style="color:{cor_compra};">{icone_compra} Compra: {escape(status_compra)} — {escape(solicitacao['protocolo'])}</h3>
+        <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
+        <p><strong>Empresa:</strong> {escape(solicitacao['empresa'])}</p>
+        <p><strong>Solicitante:</strong> {escape(solicitacao['solicitante'])}</p>
+        <p><strong>Status da compra:</strong> {escape(status_compra)}</p>
+        <p><strong>Fornecedor:</strong> {escape(fornecedor.strip() or 'Não informado')}</p>
+        <p><strong>Responsável:</strong> {escape(responsavel.strip() or 'Não informado')}</p>
+        <p><strong>Previsão de entrega:</strong> {escape(previsao.strftime('%d/%m/%Y'))}</p>
+        <p><strong>Centro de custo:</strong> {escape(centro_custo.strip() or 'Não informado')}</p>
+        <p><strong>Observação:</strong> {escape(observacao or 'Não informada')}</p>
+        <h4>Itens:</h4>
+        {itens_html_compra}
+        <hr/><p style="color:#64748B;font-size:.85em;">Mensagem automática do sistema GRM.</p>
+        """
+        enviar_email_notificacao(f"Compra {status_compra}: {solicitacao['protocolo']}", corpo_compra)
         st.rerun()
 
 
