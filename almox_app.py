@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.3.0"
+APP_VERSION = "1.3.1"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -827,7 +827,9 @@ def pagina_almoxarifado() -> None:
             )
 
             # Botão de ação
-            if st.button("✅ Confirmar conferência", type="primary", use_container_width=True, key=f"confirmar_estoque_{solicitacao['protocolo']}"):
+            col_confirmar, col_pendente = st.columns([1, 1])
+            
+            if col_confirmar.button("✅ Confirmar conferência", type="primary", use_container_width=True, key=f"confirmar_estoque_{solicitacao['protocolo']}"):
                 # Verificar se algum item é indisponível ou parcial
                 tem_falta = any(it["Qtd. disponível"] < it["Qtd. solicitada"] for it in itens_conferidos)
                 
@@ -848,61 +850,41 @@ def pagina_almoxarifado() -> None:
                     solicitacao["destino"] = "Compras"
                     solicitacao["triado_por"] = st.session_state.usuario_autenticado
                     atualizar_status(solicitacao, novo_status)
-                    st.success(f"Itens em falta em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
+                    
+                    corpo_email = f"""
+                    <h3>Retorno do Almoxarifado — Encaminhada para Compras</h3>
+                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+                    <p><strong>Status:</strong> Em processo de compra (itens em falta/parcial)</p>
+                    <h4>Conferência de Itens:</h4>
+                    {itens_html}
+                    """
+                    enviar_email_notificacao(f"Almox → Compras: {solicitacao['protocolo']}", corpo_email)
+                    st.success(f"Itens em falta em {solicitacao['protocolo']}. Encaminhada para Compras.")
                 else:
                     # Atendimento completo pelo almoxarifado
                     novo_status = "Atendido pelo almoxarifado"
                     solicitacao["destino"] = "Almoxarifado"
                     solicitacao["triado_por"] = st.session_state.usuario_autenticado
                     atualizar_status(solicitacao, novo_status)
-                    st.balloons()
-                    st.success(f"Solicitação {solicitacao['protocolo']} atendida totalmente pelo almoxarifado.")
-                solicitacao["observacao_almoxarifado"] = observacao.strip()
-                
-                itens_html = "<ul>" + "".join(
-                    [
-                        f"<li>{item['Produto']} - Qtd: {item['Qtd. solicitada']} - {item['Situação']}</li>"
-                        for item in solicitacao["estoque"]
-                    ]
-                ) + "</ul>"
-
-                if tem_indisponivel:
-                    # Encaminhar automaticamente para compras
-                    novo_status = "Em processo de compra"
-                    solicitacao["destino"] = "Compras"
-                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
-                    atualizar_status(solicitacao, novo_status)
-                    st.success(f"Itens indisponíveis em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
-
-                    corpo_email = f"""
-                    <h3>Retorno do Almoxarifado — Encaminhada para Compras</h3>
-                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-                    <p><strong>Status:</strong> Em processo de compra (itens indisponíveis)</p>
-                    <h4>Itens:</h4>
-                    {itens_html}
-                    """
-                    enviar_email_notificacao(f"Almox → Compras: {solicitacao['protocolo']}", corpo_email)
-                else:
-                    # Todos disponíveis, atender pelo almoxarifado
-                    atualizar_status(solicitacao, "Atendido pelo almoxarifado")
-                    st.success(f"Todos os itens confirmados para {solicitacao['protocolo']}.")
-
+                    
                     corpo_email = f"""
                     <h3>Retorno do Almoxarifado</h3>
                     <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
                     <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
                     <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
                     <p><strong>Status Final:</strong> Atendido pelo almoxarifado</p>
-                    <h4>Itens:</h4>
+                    <h4>Conferência de Itens:</h4>
                     {itens_html}
                     """
                     enviar_email_notificacao(f"Retorno Almoxarifado: {solicitacao['protocolo']}", corpo_email)
-
+                    st.balloons()
+                    st.success(f"Solicitação {solicitacao['protocolo']} atendida totalmente.")
+                
                 st.rerun()
 
-            if acao_col2.button("⏸️ Deixar pendente", width="stretch", key=f"pendente_{solicitacao['protocolo']}"):
+            if col_pendente.button("⏸️ Deixar pendente", use_container_width=True, key=f"pendente_{solicitacao['protocolo']}"):
                 st.info(f"{solicitacao['protocolo']} permanecerá em análise.")
 
 
