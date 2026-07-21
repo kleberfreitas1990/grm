@@ -41,10 +41,16 @@ USUARIOS_CONFIGURADOS: dict[str, dict[str, Any]] = {
 
 def _ler_secret(chave: str, padrao: str = "") -> str:
     """Lê credencial do st.secrets (Streamlit Cloud) com fallback para variável de ambiente."""
+    # O Streamlit Cloud às vezes converte as chaves para minúsculas internamente
     try:
-        return str(st.secrets[chave])
+        if chave in st.secrets:
+            return str(st.secrets[chave])
+        chave_lower = chave.lower()
+        if chave_lower in st.secrets:
+            return str(st.secrets[chave_lower])
     except Exception:
-        return os.getenv(chave, padrao)
+        pass
+    return os.getenv(chave, padrao)
 
 
 def _obter_config_smtp():
