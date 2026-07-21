@@ -55,10 +55,11 @@ def _ler_secret(chave: str, padrao: str = "") -> str:
 
 def _obter_config_smtp():
     """Retorna tupla (host, port, user, password, notification_email) lendo do st.secrets ou env."""
+    # Fallback direto para garantir funcionamento no Streamlit Cloud
     host = _ler_secret("SMTP_HOST", "smtp.gmail.com")
     port = int(_ler_secret("SMTP_PORT", "587"))
-    user = _ler_secret("SMTP_USER", "")
-    password = _ler_secret("SMTP_PASSWORD", "")
+    user = _ler_secret("SMTP_USER", "integracao@gramazini.com.br")
+    password = _ler_secret("SMTP_PASSWORD", "qxxr qbst vfdb vwra")
     notification_email = _ler_secret("NOTIFICATION_EMAIL", "pedreira.info@gramazini.com.br")
     return host, port, user, password, notification_email
 
