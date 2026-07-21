@@ -362,9 +362,9 @@ def pagina_nova_solicitacao_simplificada() -> None:
         st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
 
     # Campos fixos fora do formulário para manter o estado ao adicionar materiais
-    empresa = st.selectbox("Qual é a empresa?", EMPRESAS, key="form_empresa")
-    solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome", key="form_solicitante")
-    setor_solicitante = st.text_input("Qual é o seu setor? (opcional)", placeholder="Ex: Manutenção, Operador, etc", key="form_setor")
+    empresa = st.selectbox("**Qual é a empresa?**", EMPRESAS, key="form_empresa")
+    solicitante = st.text_input("**Qual é o seu nome?**", placeholder="Digite seu nome", key="form_solicitante")
+    setor_solicitante = st.text_input("**Qual é o seu setor? (opcional)**", placeholder="Ex: Manutenção, Operador, etc", key="form_setor")
 
     st.write("---")
     st.write("**Quais materiais você precisa?**")
@@ -374,16 +374,16 @@ def pagina_nova_solicitacao_simplificada() -> None:
     for i, item in enumerate(st.session_state.lista_materiais):
         col1, col2 = st.columns([3, 1])
         with col1:
-            item["produto"] = st.text_input(f"Material {i+1}", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
+            item["produto"] = st.text_input(f"**Material {i+1}**", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
         with col2:
-            item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
+            item["quantidade"] = st.number_input(f"**Qtd {i+1}**", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
 
     if st.button("➕ Adicionar outro material"):
         st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
         st.rerun()
 
     st.write("---")
-    observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.", key="form_obs")
+    observacao = st.text_area("**Tem mais alguma informação importante? (opcional)**", placeholder="Ex: Urgente, cor específica, etc.", key="form_obs")
 
     # Botão de envio
     if st.button("✅ ENVIAR SOLICITAÇÃO", type="primary", use_container_width=True):
