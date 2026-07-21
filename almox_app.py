@@ -301,36 +301,35 @@ def pagina_nova_solicitacao_simplificada() -> None:
     if "lista_materiais" not in st.session_state:
         st.session_state.lista_materiais = [{"produto": "", "quantidade": 1}]
 
-    with st.form("form_simples_solicitante", clear_on_submit=True):
-        # Caminho 1: Grande e claro
-        empresa = st.selectbox("Qual é a empresa?", EMPRESAS)
+    # Campos fixos fora do formulário para manter o estado ao adicionar materiais
+    empresa = st.selectbox("Qual é a empresa?", EMPRESAS, key="form_empresa")
+    solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome", key="form_solicitante")
+    setor_solicitante = st.text_input("Qual é o seu setor? (opcional)", placeholder="Ex: Manutenção, Operador, etc", key="form_setor")
 
-        st.write("---")
-        solicitante = st.text_input("Qual é o seu nome?", placeholder="Digite seu nome")
-        setor_solicitante = st.text_input("Qual é o seu setor? (opcional)", placeholder="Ex: Manutenção, Operador, etc")
+    st.write("---")
+    st.write("**Quais materiais você precisa?**")
+    st.caption("Escreva o nome do material e a quantidade. Para adicionar mais materiais, clique no botão abaixo.")
 
-        st.write("---")
-        st.write("**Quais materiais você precisa?**")
-        st.caption("Escreva o nome do material e a quantidade. Para adicionar mais materiais, preencha os campos abaixo.")
+    # Renderizar campos de materiais fora do formulário para não zerar ao clicar em botões
+    for i, item in enumerate(st.session_state.lista_materiais):
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            item["produto"] = st.text_input(f"Material {i+1}", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
+        with col2:
+            item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
 
-        for i, item in enumerate(st.session_state.lista_materiais):
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                item["produto"] = st.text_input(f"Material {i+1}", value=item["produto"], key=f"mat_prod_{i}", placeholder="Nome do material")
-            with col2:
-                item["quantidade"] = st.number_input(f"Qtd {i+1}", value=item["quantidade"], min_value=1, step=1, key=f"mat_qtd_{i}")
-
-        # Botão de adicionar material fica logo abaixo do último material
-        adicionar = st.form_submit_button("➕ Adicionar outro material")
-
-        st.write("---")
-        observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.")
-
-        gravar = st.form_submit_button("✅ ENVIAR SOLICITAÇÃO", type="primary", width="stretch")
-
-    if adicionar:
+    if st.button("➕ Adicionar outro material"):
         st.session_state.lista_materiais.append({"produto": "", "quantidade": 1})
         st.rerun()
+
+    st.write("---")
+    observacao = st.text_area("Tem mais alguma informação importante? (opcional)", placeholder="Ex: Urgente, cor específica, etc.", key="form_obs")
+
+    # Botão de envio
+    if st.button("✅ ENVIAR SOLICITAÇÃO", type="primary", use_container_width=True):
+        gravar = True
+    else:
+        gravar = False
 
     if gravar:
         # Filtrar materiais preenchidos
