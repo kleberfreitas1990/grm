@@ -22,7 +22,7 @@ class InterfaceStreamlitTest(unittest.TestCase):
         self.assertEqual(len(aplicacao.tabs), 0)
         self.assertEqual(
             [botao.label for botao in aplicacao.button],
-            ["SOLICITANTE", "SUPRIMENTOS", "ALMOXARIFADO"],
+            ["SOLICITANTE", "COMPRAS", "ALMOXARIFADO"],
         )
 
 

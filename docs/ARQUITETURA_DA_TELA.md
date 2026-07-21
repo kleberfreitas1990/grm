@@ -1,6 +1,6 @@
 # Arquitetura da Tela de Requisições
 
-**Versão do documento:** 0.10.0
+**Versão do documento:** 0.11.0
 **Data:** 21 de julho de 2026
 **Responsável:** Manus AI
 
@@ -16,17 +16,17 @@ Esta primeira entrega transforma o fluxo fornecido em uma interface única de ge
 | Inserir produto e quantidade, com opção de editar | Formulário de inclusão e tabela editável de itens | O solicitante pode criar, conferir e ajustar os itens antes de gravar. |
 | Gravar | Botão de envio com geração de protocolo | A solicitação é criada com status inicial **Aguardando triagem**. |
 | Acompanhar status | Aba **Acompanhar status** | O solicitante consulta o andamento pelo protocolo. |
-| Suprimentos → usuário e senha | Acesso identificado como **suprimentos**, com senha configurável | Permite triagem e registro de compras. |
+| Compras → usuário e senha | Acesso identificado como **compras**, com senha configurável | Permite triagem e registro de compras. |
 | Decisão entre almoxarifado e compras | Escolha de encaminhamento após o acesso de suprimentos | A solicitação é direcionada ao setor responsável. |
 | Almoxarifado → usuário e senha | Acesso identificado como **almoxarifado**, com senha configurável | Permite exclusivamente o retorno de disponibilidade. |
 | Painel do almoxarifado | Tabela com produto, quantidade e disponibilidade | A equipe registra disponibilidade e atualiza o status. |
-| Painel de compras | Formulário com campos de compra e priorização | A equipe de suprimentos registra os dados necessários para a cotação ou compra. |
+| Painel de compras | Formulário com campos de compra e priorização | A equipe de compras registra os dados necessários para a cotação ou compra. |
 
 ## Regras de acesso
 
-A aplicação mantém as solicitações em banco SQLite local e usa dois acessos internos com permissões separadas. O usuário **suprimentos** visualiza somente as áreas de atendimento e compras; o usuário **almoxarifado** visualiza somente o painel de estoque.
+A aplicação mantém as solicitações em banco SQLite local e usa dois acessos internos com permissões separadas. O usuário **compras** visualiza somente as áreas de atendimento e compras; o usuário **almoxarifado** visualiza somente o painel de estoque.
 
-As senhas devem ser definidas por `GRM_SUPRIMENTOS_PASSWORD` e `GRM_ALMOXARIFADO_PASSWORD`, por variável de ambiente ou por segredos da implantação Streamlit. O arquivo `.streamlit/secrets.toml` real é ignorado pelo Git, e o modelo versionado `.streamlit/secrets.toml.example` não contém credenciais. Senhas não devem ser colocadas no código, na documentação ou em commits.
+As senhas devem ser definidas por `GRM_COMPRAS_PASSWORD` e `GRM_ALMOXARIFADO_PASSWORD`, por variável de ambiente ou por segredos da implantação Streamlit. O arquivo `.streamlit/secrets.toml` real é ignorado pelo Git, e o modelo versionado `.streamlit/secrets.toml.example` não contém credenciais. Senhas não devem ser colocadas no código, na documentação ou em commits.
 
 ## Estados previstos para uma solicitação
 

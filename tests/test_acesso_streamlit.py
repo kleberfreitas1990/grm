@@ -22,27 +22,27 @@ class AcessoSetorialStreamlitTest(unittest.TestCase):
         self.assertEqual(len(aplicacao.exception), 0)
         return aplicacao
 
-    def test_suprimentos_acessa_atendimento_e_compras(self) -> None:
-        with patch.dict(os.environ, {"GRM_SUPRIMENTOS_PASSWORD": "senha-suprimentos"}, clear=False):
+    def test_compras_acessa_atendimento_e_compras(self) -> None:
+        with patch.dict(os.environ, {"GRM_COMPRAS_PASSWORD": "Grm@2026"}, clear=False):
             aplicacao = self._abrir_aplicacao()
             aplicacao.button[1].click().run(timeout=10)
             self.assertEqual(len(aplicacao.exception), 0)
             self.assertEqual([campo.label for campo in aplicacao.text_input], ["Usuário", "Senha"])
 
-            aplicacao.text_input[1].set_value("senha-suprimentos")
+            aplicacao.text_input[1].set_value("Grm@2026")
             aplicacao.button[0].click().run(timeout=10)
 
             self.assertEqual(len(aplicacao.exception), 0)
             self.assertEqual([aba.label for aba in aplicacao.tabs], ["Atendimento", "Compras"])
 
     def test_almoxarifado_acessa_somente_estoque(self) -> None:
-        with patch.dict(os.environ, {"GRM_ALMOXARIFADO_PASSWORD": "senha-almoxarifado"}, clear=False):
+        with patch.dict(os.environ, {"GRM_ALMOXARIFADO_PASSWORD": "Grm@2026"}, clear=False):
             aplicacao = self._abrir_aplicacao()
             aplicacao.button[2].click().run(timeout=10)
             self.assertEqual(len(aplicacao.exception), 0)
             self.assertEqual([campo.label for campo in aplicacao.text_input], ["Usuário", "Senha"])
 
-            aplicacao.text_input[1].set_value("senha-almoxarifado")
+            aplicacao.text_input[1].set_value("Grm@2026")
             aplicacao.button[0].click().run(timeout=10)
 
             self.assertEqual(len(aplicacao.exception), 0)

@@ -22,14 +22,14 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.10.0"
+APP_VERSION = "0.11.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
 USUARIOS_CONFIGURADOS: dict[str, dict[str, Any]] = {
-    "suprimentos": {
-        "rotulo": "Suprimentos",
-        "chave_senha": "GRM_SUPRIMENTOS_PASSWORD",
+    "compras": {
+        "rotulo": "Compras",
+        "chave_senha": "GRM_COMPRAS_PASSWORD",
         "permissoes": ("atendimento", "compras"),
     },
     "almoxarifado": {
@@ -562,7 +562,7 @@ def pagina_atendimento() -> None:
         <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
         <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
         <p><strong>Setor Destino:</strong> {destino}</p>
-        <p><strong>Usuário de suprimentos:</strong> {st.session_state.usuario_autenticado}</p>
+        <p><strong>Usuário de compras:</strong> {st.session_state.usuario_autenticado}</p>
         <h4>Itens:</h4>
         {itens_html}
         """
@@ -703,16 +703,16 @@ def main() -> None:
         st.title("Gestão de Requisições de Materiais")
         st.write("Selecione seu acesso para continuar:")
 
-        col_solicitante, col_suprimentos, col_almoxarifado = st.columns(3)
+        col_solicitante, col_compras, col_almoxarifado = st.columns(3)
 
         with col_solicitante:
             if st.button("SOLICITANTE", type="primary", width="stretch"):
                 st.session_state.perfil = "solicitante"
                 st.rerun()
 
-        with col_suprimentos:
-            if st.button("SUPRIMENTOS", type="secondary", width="stretch"):
-                st.session_state.perfil = "suprimentos"
+        with col_compras:
+            if st.button("COMPRAS", type="secondary", width="stretch"):
+                st.session_state.perfil = "compras"
                 st.rerun()
 
         with col_almoxarifado:
@@ -750,8 +750,8 @@ def main() -> None:
                 st.session_state.modo_solicitante = "form"
                 st.rerun()
 
-    elif st.session_state.perfil == "suprimentos":
-        if not autenticar_usuario("suprimentos"):
+    elif st.session_state.perfil == "compras":
+        if not autenticar_usuario("compras"):
             return
 
         renderizar_cabecalho()

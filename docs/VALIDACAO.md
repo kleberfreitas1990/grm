@@ -1,8 +1,8 @@
 # Registro de Validação
 
-## Versão 0.10.0 — 21 de julho de 2026
+## Versão 0.11.0 — 21 de julho de 2026
 
-A versão foi validada por compilação de `almox_app.py` e `db.py` e por execução de oito testes automatizados. A tela inicial carregou sem exceções e apresentou os acessos **SOLICITANTE**, **SUPRIMENTOS** e **ALMOXARIFADO**. Os testes também confirmaram que suprimentos possui permissões de atendimento e compras, enquanto almoxarifado possui exclusivamente a permissão de estoque e que cada usuário consegue concluir seu próprio fluxo de login.
+A versão foi validada por compilação de `almox_app.py` e `db.py` e por execução de oito testes automatizados. A tela inicial carregou sem exceções e apresentou os acessos **SOLICITANTE**, **COMPRAS** e **ALMOXARIFADO**. Os testes também confirmaram que o usuário **compras** possui permissões de atendimento e compras, enquanto o usuário **almoxarifado** possui exclusivamente a permissão de estoque e que cada usuário consegue concluir seu próprio fluxo de login com a senha `Grm@2026`.
 
 | Verificação | Resultado |
 |---|---|

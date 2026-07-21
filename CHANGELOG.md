@@ -2,6 +2,15 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.11.0] — 2026-07-21
+
+### Alterado
+
+- O usuário **suprimentos** foi renomeado para **compras**.
+- A senha padrão para os usuários **compras** e **almoxarifado** foi alterada para `Grm@2026`.
+
+[0.11.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.11.0
+
 ## [0.10.0] — 2026-07-21
 
 ### Adicionado

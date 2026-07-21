@@ -57,16 +57,16 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
         self.assertTrue(status_esperados.issubset(APP.STATUS_META))
 
     def test_usuarios_setoriais_possuem_permissoes_separadas(self) -> None:
-        self.assertEqual(set(APP.USUARIOS_CONFIGURADOS), {"suprimentos", "almoxarifado"})
-        self.assertTrue(APP.usuario_tem_permissao("suprimentos", "atendimento"))
-        self.assertTrue(APP.usuario_tem_permissao("suprimentos", "compras"))
-        self.assertFalse(APP.usuario_tem_permissao("suprimentos", "almoxarifado"))
+        self.assertEqual(set(APP.USUARIOS_CONFIGURADOS), {"compras", "almoxarifado"})
+        self.assertTrue(APP.usuario_tem_permissao("compras", "atendimento"))
+        self.assertTrue(APP.usuario_tem_permissao("compras", "compras"))
+        self.assertFalse(APP.usuario_tem_permissao("compras", "almoxarifado"))
         self.assertTrue(APP.usuario_tem_permissao("almoxarifado", "almoxarifado"))
         self.assertFalse(APP.usuario_tem_permissao("almoxarifado", "compras"))
 
-    def test_senha_de_suprimentos_e_lida_da_variavel_de_ambiente(self) -> None:
-        with patch.dict(os.environ, {"GRM_SUPRIMENTOS_PASSWORD": "senha-de-teste"}, clear=False):
-            self.assertEqual(APP.obter_senha_configurada("suprimentos"), "senha-de-teste")
+    def test_senha_de_compras_e_lida_da_variavel_de_ambiente(self) -> None:
+        with patch.dict(os.environ, {"GRM_COMPRAS_PASSWORD": "senha-de-teste"}, clear=False):
+            self.assertEqual(APP.obter_senha_configurada("compras"), "senha-de-teste")
 
 
 if __name__ == "__main__":
