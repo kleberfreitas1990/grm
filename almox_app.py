@@ -11,7 +11,7 @@ import hmac
 import os
 import smtplib
 import ssl
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from html import escape
@@ -22,7 +22,14 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.6.0"
+APP_VERSION = "1.6.1"
+
+# Configuração de Fuso Horário (Brasília - GMT-3)
+TZ_BRASILIA = timezone(timedelta(hours=-3))
+
+def agora_br() -> datetime:
+    """Retorna o horário atual no fuso de Brasília."""
+    return datetime.now(TZ_BRASILIA)
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -259,7 +266,7 @@ def inicializar_estado() -> None:
 def gerar_protocolo() -> str:
     """Gera um identificador legível para acompanhamento da solicitação."""
     sequencia = db.obter_sequencia_protocolo()
-    return f"GRM-{datetime.now():%Y%m%d}-{sequencia:04d}"
+    return f"GRM-{agora_br():%Y%m%d}-{sequencia:04d}"
 
 
 def normalizar_itens(dados: pd.DataFrame) -> list[dict[str, Any]]:
@@ -419,7 +426,7 @@ def pagina_nova_solicitacao_simplificada() -> None:
             return
 
         protocolo = gerar_protocolo()
-        agora = datetime.now()
+        agora = agora_br()
         solicitacao = {
             "protocolo": protocolo,
             "empresa": empresa,
@@ -431,7 +438,7 @@ def pagina_nova_solicitacao_simplificada() -> None:
             "status": "Em análise no almoxarifado",
             "criado_em": agora,
             "atualizado_em": agora,
-            "destino": "",
+            "destino": "Almoxarifado",
             "triado_por": "",
             "estoque": [],
             "dados_compra": {},
@@ -461,6 +468,7 @@ def pagina_nova_solicitacao_simplificada() -> None:
         <p><strong>Solicitante:</strong> {escape(solicitante.strip())}</p>
         <p><strong>Setor:</strong> {escape(setor_solicitante.strip() or 'Não informado')}</p>
         <p><strong>Data/Hora:</strong> {agora.strftime('%d/%m/%Y às %H:%M')}</p>
+        <p><strong>Status Inicial:</strong> <span style="color:#EA580C;font-weight:bold;">Aguardando Almoxarifado</span></p>
         <h4>Itens solicitados:</h4>
         {itens_html}
         <p><strong>Observação:</strong> {escape(observacao.strip() or 'Nenhuma')}</p>
@@ -1015,7 +1023,7 @@ def pagina_almoxarifado() -> None:
                     recebido_por = st.text_input("Recebido por", value="almoxarifado")
                     col_data, col_hora = st.columns(2)
                     data_recebimento = col_data.date_input("Data de recebimento", value=date.today())
-                    hora_recebimento = col_hora.time_input("Hora de recebimento", value=datetime.now().time().replace(second=0, microsecond=0))
+                    hora_recebimento = col_hora.time_input("Hora de recebimento", value=agora_br().time().replace(second=0, microsecond=0))
                     documento = st.text_input("Documento de referência", placeholder="Ex.: NF, romaneio ou pedido")
                     observacao = st.text_area("Observação do recebimento", placeholder="Registre a conferência física ou alguma divergência.")
                     registrar = st.form_submit_button("Confirmar recebimento", type="primary", width="stretch")
@@ -1065,7 +1073,7 @@ def pagina_almoxarifado() -> None:
                     destinatario = st.text_input("Destinatário", value=solicitacao["solicitante"])
                     col_data, col_hora = st.columns(2)
                     data_envio = col_data.date_input("Data de envio", value=date.today())
-                    hora_envio = col_hora.time_input("Hora de envio", value=datetime.now().time().replace(second=0, microsecond=0))
+                    hora_envio = col_hora.time_input("Hora de envio", value=agora_br().time().replace(second=0, microsecond=0))
                     modalidade = st.selectbox("Modalidade de entrega", ["Entrega interna", "Retirada pelo solicitante", "Transportadora", "Outro"])
                     observacao = st.text_area("Observação do envio", placeholder="Registre local de entrega, comprovante ou outra informação útil.")
                     registrar = st.form_submit_button("Confirmar envio ao solicitante", type="primary", width="stretch")
