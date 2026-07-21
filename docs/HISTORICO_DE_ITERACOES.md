@@ -6,6 +6,51 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 018 — Versão 0.10.0 — 21 de julho de 2026
+
+### Objetivo
+
+Criar os acessos internos de suprimentos e almoxarifado com permissões setoriais separadas e credenciais configuradas de modo seguro.
+
+### Prompt sanitizado
+
+> Pode criar os 2 usuários: suprimentos e almoxarifado e suas respectivas senhas. `[DADO SENSÍVEL OMITIDO]`
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+|---|---|
+| Acesso | Substituição do perfil genérico de atendente pelos acessos **suprimentos** e **almoxarifado** na tela inicial. |
+| Permissões | Suprimentos recebe acesso às áreas de atendimento e compras; almoxarifado recebe acesso exclusivo ao painel de estoque. |
+| Segurança | Senhas lidas de `st.secrets` ou de variáveis de ambiente, com comparação em tempo constante. Nenhuma senha foi gravada no código ou no repositório. |
+| Configuração | Adicionado modelo de arquivo de segredos para a implantação. O arquivo local real de credenciais permanece ignorado pelo Git. |
+| Testes | Incluídos testes para as contas, permissões, leitura de credencial e tela inicial; isolado teste de status da persistência. |
+| Versionamento | Atualização da versão da aplicação para `0.10.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+|---|---|
+| `almox_app.py` | Implementação de autenticação, permissões e navegação por usuário. |
+| `.streamlit/secrets.toml.example` | Modelo seguro para configurar as duas senhas na implantação. |
+| `tests/test_almox_app.py` | Testes das permissões e da leitura de credenciais. |
+| `tests/test_interface_streamlit.py` | Teste da tela inicial com os três acessos disponíveis. |
+| `tests/test_acesso_streamlit.py` | Testes de login e de visibilidade das áreas permitidas para cada usuário. |
+| `docs/ARQUITETURA_DA_TELA.md` | Atualização do desenho de acesso e das regras de segurança. |
+| `docs/VALIDACAO.md` | Evidências da validação da versão `0.10.0`. |
+| `CHANGELOG.md` | Resumo da nova versão. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado desta iteração. |
+
+### Validação executada
+
+Executadas a compilação de `almox_app.py` e `db.py` e a suíte `python3 -m unittest discover -s tests -v`. Os oito testes foram aprovados, incluindo carregamento da tela inicial, login de suprimentos, login de almoxarifado e separação de permissões. O aviso interno de contexto do Streamlit no teste isolado de interface não representa falha da aplicação.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v0.10.0`. O identificador do commit será registrado após o envio.
+
+---
+
 ## Iteração 017 — Versão 0.9.4 — 20 de julho de 2026
 
 ### Objetivo

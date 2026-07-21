@@ -2,6 +2,22 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [0.10.0] — 2026-07-21
+
+### Adicionado
+
+- Novos acessos internos **suprimentos** e **almoxarifado** na tela inicial.
+- Permissões separadas: suprimentos atende e registra compras; almoxarifado registra exclusivamente o retorno de estoque.
+- Modelo `.streamlit/secrets.toml.example` para configuração segura das credenciais de implantação.
+- Testes das contas setoriais, das permissões e da leitura da senha por variável de ambiente.
+
+### Segurança
+
+- Senhas lidas exclusivamente de segredos da implantação Streamlit ou de variáveis de ambiente; nenhuma credencial é versionada.
+- Comparação de senha com `hmac.compare_digest`.
+
+[0.10.0]: https://github.com/kleberfreitas1990/grm/releases/tag/v0.10.0
+
 ## [0.9.4] — 2026-07-20
 
 ### Corrigido

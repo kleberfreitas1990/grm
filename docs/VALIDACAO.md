@@ -1,5 +1,21 @@
 # Registro de Validação
 
+## Versão 0.10.0 — 21 de julho de 2026
+
+A versão foi validada por compilação de `almox_app.py` e `db.py` e por execução de oito testes automatizados. A tela inicial carregou sem exceções e apresentou os acessos **SOLICITANTE**, **SUPRIMENTOS** e **ALMOXARIFADO**. Os testes também confirmaram que suprimentos possui permissões de atendimento e compras, enquanto almoxarifado possui exclusivamente a permissão de estoque e que cada usuário consegue concluir seu próprio fluxo de login.
+
+| Verificação | Resultado |
+|---|---|
+| Compilação Python | Aprovada |
+| Leitura de senha por variável de ambiente | Aprovada |
+| Separação de permissões setoriais | Aprovada |
+| Carregamento da tela inicial Streamlit | Aprovado |
+| Suíte automatizada | 8 de 8 testes aprovados |
+
+> O aviso interno de contexto do Streamlit emitido durante o teste isolado de interface não representa falha da aplicação.
+
+---
+
 ## Versão 0.1.0 — 20 de julho de 2026
 
 A aplicação foi iniciada localmente e a tela inicial foi conferida em navegador. Foram observados corretamente o cabeçalho de Gestão de Requisições de Materiais, os quatro indicadores operacionais, o resumo do fluxo, a barra lateral de contexto e as cinco abas previstas: Nova solicitação, Acompanhar status, Atendimento, Almoxarifado e Compras.

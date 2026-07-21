@@ -1,7 +1,7 @@
 # Arquitetura da Tela de Requisições
 
-**Versão do documento:** 0.1.0
-**Data:** 20 de julho de 2026
+**Versão do documento:** 0.10.0
+**Data:** 21 de julho de 2026
 **Responsável:** Manus AI
 
 ## Objetivo
@@ -16,16 +16,17 @@ Esta primeira entrega transforma o fluxo fornecido em uma interface única de ge
 | Inserir produto e quantidade, com opção de editar | Formulário de inclusão e tabela editável de itens | O solicitante pode criar, conferir e ajustar os itens antes de gravar. |
 | Gravar | Botão de envio com geração de protocolo | A solicitação é criada com status inicial **Aguardando triagem**. |
 | Acompanhar status | Aba **Acompanhar status** | O solicitante consulta o andamento pelo protocolo. |
-| Atendente → inserir senha | Aba **Atendimento**, com validação de senha configurável | O acesso às rotinas internas é separado da solicitação. |
-| Decisão entre almoxarifado e compras | Escolha de encaminhamento após o acesso do atendente | A solicitação é direcionada ao setor responsável. |
+| Suprimentos → usuário e senha | Acesso identificado como **suprimentos**, com senha configurável | Permite triagem e registro de compras. |
+| Decisão entre almoxarifado e compras | Escolha de encaminhamento após o acesso de suprimentos | A solicitação é direcionada ao setor responsável. |
+| Almoxarifado → usuário e senha | Acesso identificado como **almoxarifado**, com senha configurável | Permite exclusivamente o retorno de disponibilidade. |
 | Painel do almoxarifado | Tabela com produto, quantidade e disponibilidade | A equipe registra disponibilidade e atualiza o status. |
-| Painel de compras | Formulário com campos de compra e priorização | A equipe registra os dados necessários para a cotação ou compra. |
+| Painel de compras | Formulário com campos de compra e priorização | A equipe de suprimentos registra os dados necessários para a cotação ou compra. |
 
-## Regras da versão inicial
+## Regras de acesso
 
-A versão 0.1.0 mantém os dados em memória durante a sessão do navegador. Assim, ela demonstra integralmente o fluxo de tela, mas não substitui uma base de dados, autenticação corporativa ou trilha de auditoria persistente.
+A aplicação mantém as solicitações em banco SQLite local e usa dois acessos internos com permissões separadas. O usuário **suprimentos** visualiza somente as áreas de atendimento e compras; o usuário **almoxarifado** visualiza somente o painel de estoque.
 
-A senha do atendimento deve ser configurada pela variável de ambiente `GRM_ATTENDANT_PASSWORD`. Caso ela não esteja definida, a aplicação sinalizará explicitamente que está em modo de demonstração; esse comportamento não deve ser utilizado como controle de acesso em produção.
+As senhas devem ser definidas por `GRM_SUPRIMENTOS_PASSWORD` e `GRM_ALMOXARIFADO_PASSWORD`, por variável de ambiente ou por segredos da implantação Streamlit. O arquivo `.streamlit/secrets.toml` real é ignorado pelo Git, e o modelo versionado `.streamlit/secrets.toml.example` não contém credenciais. Senhas não devem ser colocadas no código, na documentação ou em commits.
 
 ## Estados previstos para uma solicitação
 
@@ -39,4 +40,4 @@ A senha do atendimento deve ser configurada pela variável de ambiente `GRM_ATTE
 
 ## Evoluções recomendadas
 
-A próxima etapa técnica deve substituir os dados de sessão por armazenamento persistente, autenticação por usuário e perfis de acesso, cadastro real de empresas e produtos, notificação de mudanças de status e histórico por requisição.
+As próximas evoluções recomendadas incluem autenticação corporativa com gerenciamento centralizado de usuários, expiração de sessão, recuperação de senha, trilha de auditoria por ação e cadastro real de empresas e produtos.

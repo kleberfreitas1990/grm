@@ -19,10 +19,11 @@ class InterfaceStreamlitTest(unittest.TestCase):
         aplicacao.run(timeout=10)
 
         self.assertEqual(len(aplicacao.exception), 0)
-        self.assertEqual(len(aplicacao.tabs), 5)
-        self.assertGreaterEqual(len(aplicacao.selectbox), 2)
-        self.assertGreaterEqual(len(aplicacao.text_input), 2)
-        self.assertGreaterEqual(len(aplicacao.button), 1)
+        self.assertEqual(len(aplicacao.tabs), 0)
+        self.assertEqual(
+            [botao.label for botao in aplicacao.button],
+            ["SOLICITANTE", "SUPRIMENTOS", "ALMOXARIFADO"],
+        )
 
 
 if __name__ == "__main__":

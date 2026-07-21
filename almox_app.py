@@ -7,6 +7,7 @@ antes da integração com uma base de dados e autenticação corporativa.
 
 from __future__ import annotations
 
+import hmac
 import os
 import smtplib
 import ssl
@@ -21,7 +22,23 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "0.9.4"
+APP_VERSION = "0.10.0"
+
+# As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
+# Nenhuma credencial deve ser incluída no repositório.
+USUARIOS_CONFIGURADOS: dict[str, dict[str, Any]] = {
+    "suprimentos": {
+        "rotulo": "Suprimentos",
+        "chave_senha": "GRM_SUPRIMENTOS_PASSWORD",
+        "permissoes": ("atendimento", "compras"),
+    },
+    "almoxarifado": {
+        "rotulo": "Almoxarifado",
+        "chave_senha": "GRM_ALMOXARIFADO_PASSWORD",
+        "permissoes": ("almoxarifado",),
+    },
+}
+
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
 SMTP_USER = os.getenv("SMTP_USER")
@@ -185,8 +202,7 @@ def inicializar_estado() -> None:
     """Inicializa somente os dados que precisam sobreviver às interações da sessão."""
     st.session_state.setdefault("solicitacoes", db.carregar_todas())
     st.session_state.setdefault("sequencia_protocolo", db.obter_sequencia_protocolo())
-    st.session_state.setdefault("atendente_autenticado", False)
-    st.session_state.setdefault("atendente_nome", "")
+    st.session_state.setdefault("usuario_autenticado", "")
     st.session_state.setdefault("ultimo_protocolo", "")
 
 
@@ -443,29 +459,53 @@ def exibir_detalhes_solicitacao(solicitacao: dict) -> None:
         if dados.get("observacao"):
             st.write(f"**Observação:** {dados['observacao']}")
 
-def autenticar_atendente() -> bool:
-    """Controla o acesso à área de triagem sem expor a senha no código."""
-    if st.session_state.atendente_autenticado:
+def obter_senha_configurada(usuario: str) -> str | None:
+    """Obtém a senha de um usuário a partir de configuração segura."""
+    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
+    if not dados_usuario:
+        return None
+
+    chave_senha = str(dados_usuario["chave_senha"])
+    senha = os.getenv(chave_senha)
+    if not senha:
+        try:
+            senha = st.secrets.get(chave_senha)
+        except Exception:
+            # Sem arquivo de segredos configurado, a variável de ambiente já foi testada.
+            senha = None
+
+    return str(senha).strip() if senha else None
+
+
+def usuario_tem_permissao(usuario: str, permissao: str) -> bool:
+    """Informa se o usuário possui a permissão necessária para uma área."""
+    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
+    if not dados_usuario:
+        return False
+    return permissao in dados_usuario["permissoes"]
+
+
+def autenticar_usuario(usuario: str) -> bool:
+    """Valida a senha de um usuário configurado sem expor a credencial."""
+    if st.session_state.usuario_autenticado == usuario:
         return True
 
-    senha_configurada = os.getenv("GRM_ATTENDANT_PASSWORD")
-    senha_esperada = senha_configurada or "demo123"
-    if not senha_configurada:
-        st.warning("Modo demonstração ativo. Configure `GRM_ATTENDANT_PASSWORD` antes de utilizar a aplicação em ambiente real.")
+    dados_usuario = USUARIOS_CONFIGURADOS.get(usuario)
+    senha_esperada = obter_senha_configurada(usuario)
+    if not dados_usuario or not senha_esperada:
+        st.error("Acesso indisponível. Solicite ao administrador a configuração desta conta.")
+        return False
 
-    with st.form("formulario_acesso_atendente"):
-        nome = st.text_input("Nome do atendente", placeholder="Ex.: João da Silva")
-        senha = st.text_input("Senha de atendimento", type="password")
-        acessar = st.form_submit_button("Acessar triagem", type="primary")
+    with st.form(f"formulario_login_{usuario}"):
+        st.text_input("Usuário", value=usuario, disabled=True)
+        senha_informada = st.text_input("Senha", type="password")
+        acessar = st.form_submit_button("Entrar", type="primary")
 
     if acessar:
-        if not nome.strip():
-            st.error("Informe o nome do atendente.")
-        elif senha != senha_esperada:
+        if not hmac.compare_digest(senha_informada, senha_esperada):
             st.error("Senha inválida. Verifique os dados e tente novamente.")
         else:
-            st.session_state.atendente_autenticado = True
-            st.session_state.atendente_nome = nome.strip()
+            st.session_state.usuario_autenticado = usuario
             st.rerun()
     return False
 
@@ -475,15 +515,7 @@ def pagina_atendimento() -> None:
     st.subheader("Atendimento e triagem")
     st.write("Após validar a senha, o atendente analisa a solicitação e encaminha para o almoxarifado ou para compras.")
 
-    if not autenticar_atendente():
-        return
-
-    cabecalho, sair = st.columns([5, 1])
-    cabecalho.success(f"Acesso liberado para {st.session_state.atendente_nome}.")
-    if sair.button("Sair", width="stretch"):
-        st.session_state.atendente_autenticado = False
-        st.session_state.atendente_nome = ""
-        st.rerun()
+    st.caption("Acesso exclusivo do usuário suprimentos.")
 
     pendentes = [item for item in st.session_state.solicitacoes if item["status"] == "Aguardando triagem"]
     if not pendentes:
@@ -518,7 +550,7 @@ def pagina_atendimento() -> None:
     if encaminhar:
         novo_status = "Em análise no almoxarifado" if destino == "Almoxarifado" else "Em processo de compra"
         solicitacao["destino"] = destino
-        solicitacao["triado_por"] = st.session_state.atendente_nome
+        solicitacao["triado_por"] = st.session_state.usuario_autenticado
         solicitacao["observacao_triagem"] = justificativa.strip()
         atualizar_status(solicitacao, novo_status)
         st.success(f"{solicitacao['protocolo']} encaminhada para {destino.lower()}.")
@@ -530,7 +562,7 @@ def pagina_atendimento() -> None:
         <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
         <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
         <p><strong>Setor Destino:</strong> {destino}</p>
-        <p><strong>Atendente:</strong> {st.session_state.atendente_nome}</p>
+        <p><strong>Usuário de suprimentos:</strong> {st.session_state.usuario_autenticado}</p>
         <h4>Itens:</h4>
         {itens_html}
         """
@@ -628,7 +660,7 @@ def pagina_compras() -> None:
             fornecedor = st.text_input("Fornecedor sugerido", placeholder="Ex.: Fornecedor ABC")
             previsao = st.date_input("Previsão de entrega", value=date.today())
         with direita:
-            responsavel = st.text_input("Responsável pela compra", placeholder="Ex.: Ana Souza")
+            responsavel = st.text_input("Responsável pela compra", value="suprimentos", placeholder="Ex.: Ana Souza")
             centro_custo = st.text_input("Centro de custo", placeholder="Ex.: CC-1001")
         observacao = st.text_area("Observação para compras", placeholder="Inclua condições, urgência ou referências de cotação.")
         registrar = st.form_submit_button("Registrar dados de compra", type="primary", width="stretch")
@@ -669,18 +701,23 @@ def main() -> None:
 
     if st.session_state.perfil == "":
         st.title("Gestão de Requisições de Materiais")
-        st.write("Selecione seu perfil de acesso para continuar:")
+        st.write("Selecione seu acesso para continuar:")
 
-        col_solicitante, col_atendente = st.columns(2)
+        col_solicitante, col_suprimentos, col_almoxarifado = st.columns(3)
 
         with col_solicitante:
             if st.button("SOLICITANTE", type="primary", width="stretch"):
                 st.session_state.perfil = "solicitante"
                 st.rerun()
 
-        with col_atendente:
-            if st.button("ATENDENTE", type="secondary", width="stretch"):
-                st.session_state.perfil = "atendente"
+        with col_suprimentos:
+            if st.button("SUPRIMENTOS", type="secondary", width="stretch"):
+                st.session_state.perfil = "suprimentos"
+                st.rerun()
+
+        with col_almoxarifado:
+            if st.button("ALMOXARIFADO", type="secondary", width="stretch"):
+                st.session_state.perfil = "almoxarifado"
                 st.rerun()
 
         st.markdown("---")
@@ -713,25 +750,32 @@ def main() -> None:
                 st.session_state.modo_solicitante = "form"
                 st.rerun()
 
-    elif st.session_state.perfil == "atendente":
+    elif st.session_state.perfil == "suprimentos":
+        if not autenticar_usuario("suprimentos"):
+            return
+
         renderizar_cabecalho()
-        aba_atendimento, aba_almoxarifado, aba_compras = st.tabs(
-            [
-                "Atendimento",
-                "Almoxarifado",
-                "Compras",
-            ]
-        )
+        aba_atendimento, aba_compras = st.tabs(["Atendimento", "Compras"])
         with aba_atendimento:
             pagina_atendimento()
-        with aba_almoxarifado:
-            pagina_almoxarifado()
         with aba_compras:
             pagina_compras()
 
-        if st.button("Voltar para a tela inicial"):
+        if st.button("Sair", width="stretch"):
             st.session_state.perfil = ""
-            st.session_state.atendente_autenticado = False
+            st.session_state.usuario_autenticado = ""
+            st.rerun()
+
+    elif st.session_state.perfil == "almoxarifado":
+        if not autenticar_usuario("almoxarifado"):
+            return
+
+        renderizar_cabecalho()
+        pagina_almoxarifado()
+
+        if st.button("Sair", width="stretch"):
+            st.session_state.perfil = ""
+            st.session_state.usuario_autenticado = ""
             st.rerun()
 
 

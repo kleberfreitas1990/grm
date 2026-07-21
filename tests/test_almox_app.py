@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.util
 import pathlib
+import os
 import unittest
 from datetime import datetime
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -36,8 +38,10 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
     def test_status_atualiza_data_de_movimentacao(self) -> None:
         solicitacao = {"status": "Aguardando triagem", "atualizado_em": datetime(2020, 1, 1)}
 
-        APP.atualizar_status(solicitacao, "Em processo de compra")
+        with patch.object(APP.db, "salvar_solicitacao") as salvar_solicitacao:
+            APP.atualizar_status(solicitacao, "Em processo de compra")
 
+        salvar_solicitacao.assert_called_once_with(solicitacao)
         self.assertEqual(solicitacao["status"], "Em processo de compra")
         self.assertGreater(solicitacao["atualizado_em"], datetime(2020, 1, 1))
 
@@ -51,6 +55,18 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
         }
 
         self.assertTrue(status_esperados.issubset(APP.STATUS_META))
+
+    def test_usuarios_setoriais_possuem_permissoes_separadas(self) -> None:
+        self.assertEqual(set(APP.USUARIOS_CONFIGURADOS), {"suprimentos", "almoxarifado"})
+        self.assertTrue(APP.usuario_tem_permissao("suprimentos", "atendimento"))
+        self.assertTrue(APP.usuario_tem_permissao("suprimentos", "compras"))
+        self.assertFalse(APP.usuario_tem_permissao("suprimentos", "almoxarifado"))
+        self.assertTrue(APP.usuario_tem_permissao("almoxarifado", "almoxarifado"))
+        self.assertFalse(APP.usuario_tem_permissao("almoxarifado", "compras"))
+
+    def test_senha_de_suprimentos_e_lida_da_variavel_de_ambiente(self) -> None:
+        with patch.dict(os.environ, {"GRM_SUPRIMENTOS_PASSWORD": "senha-de-teste"}, clear=False):
+            self.assertEqual(APP.obter_senha_configurada("suprimentos"), "senha-de-teste")
 
 
 if __name__ == "__main__":
