@@ -1,58 +1,41 @@
+"""Persistência das solicitações do GRM com TiDB Cloud e fallback SQLite."""
+
+from __future__ import annotations
+
 import json
 import os
 from datetime import datetime
 from typing import Any
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Banco de dados persistente via TiDB Cloud (SQLAlchemy) com fallback SQLite.
-#
-# No Streamlit Cloud, o SQLite local é apagado a cada deploy/hibernação.
-# Para evitar perda de dados, a aplicação usa TiDB Cloud quando a connection
-# está configurada nos secrets. Em ambiente local (desenvolvimento), usa SQLite.
-# ─────────────────────────────────────────────────────────────────────────────
-
 DATABASE_PATH = "grm_data.db"
 
-_SQLITE = False  # Seria sobrescrito pelo _init_engine abaixo
+
+def _usar_sqlite_forcado() -> bool:
+    """Permite isolar testes e desenvolvimento local do banco remoto."""
+    return os.getenv("GRM_USE_SQLITE", "").strip().lower() in {"1", "true", "yes"}
 
 
 def _init_engine():
-    """Inicializa o engine: TiDB Cloud se disponível, SQLite como fallback."""
-    global _SQLITE
+    """Inicializa TiDB quando configurado; caso contrário, utiliza SQLite local."""
+    if not _usar_sqlite_forcado():
+        try:
+            import streamlit as st
 
-    # Verifica se há segredos de TiDB configurados no Streamlit
-    try:
-        import streamlit as st
-        if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
-            st.info("Conectando ao banco de dados permanente (TiDB Cloud)...")
-            # Tenta injetar o PyMySQL como driver padrão do mysql
-            try:
-                import pymysql
-                pymysql.install_as_MySQLdb()
-            except ImportError:
-                pass
-                
-            # Força o uso do PyMySQL explicitamente
-            conn = st.connection("tidb", type="sql")
-            
-            # Teste rápido de conexão
-            conn.query("SELECT 1", ttl=0)
-            return conn, False
-    except Exception as e:
-        # Se houver segredos mas a conexão falhar, reportamos o erro
-        import streamlit as st
-        st.error(f"Erro crítico de conexão com o banco de dados: {e}")
-        # Não faz fallback para SQLite se o usuário configurou TiDB, para evitar confusão de dados
-        if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
-             raise e
-        pass
+            if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
+                conn = st.connection("tidb", type="sql")
+                conn.query("SELECT 1 AS conectado", ttl=0)
+                return conn, False
+        except Exception as exc:
+            import streamlit as st
 
-    # Fallback: SQLite local (para desenvolvimento)
+            if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
+                st.error(f"Erro crítico de conexão com o banco de dados: {exc}")
+                raise
+
     import sqlite3
-    _SQLITE = True
 
     class SQLiteEngine:
-        def __init__(self, path):
+        def __init__(self, path: str):
             self.path = path
 
         def _conn(self):
@@ -60,41 +43,20 @@ def _init_engine():
             conn.row_factory = sqlite3.Row
             return conn
 
-        def query(self, sql, ttl=0, params=None):
+        def query(self, sql: str, ttl: int = 0, params=None):
             import pandas as pd
-            conn = self._conn()
-            df = pd.read_sql_query(sql, conn, params=params)
-            conn.close()
-            return df
 
-        def run(self, sql, params=None):
             conn = self._conn()
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.executescript(sql)
-            conn.commit()
-            conn.close()
-
-        def execute(self, sql, params=None):
-            """Executa um INSERT/UPDATE com parâmetros."""
-            conn = self._conn()
-            cursor = conn.cursor()
-            if params:
-                cursor.execute(sql, params)
-            else:
-                cursor.execute(sql)
-            conn.commit()
-            conn.close()
+            try:
+                return pd.read_sql_query(sql, conn, params=params)
+            finally:
+                conn.close()
 
         def session(self):
-            """Retorna um contexto de conexão para operações transactionais."""
             return SQLiteSession(self.path)
 
     class SQLiteSession:
-        def __init__(self, path):
-            self.path = path
+        def __init__(self, path: str):
             self.conn = sqlite3.connect(path)
             self.conn.row_factory = sqlite3.Row
             self.cursor = self.conn.cursor()
@@ -109,36 +71,68 @@ def _init_engine():
                 self.conn.commit()
             self.conn.close()
 
-        def execute(self, sql, params=None):
-            if params:
-                self.cursor.execute(sql, params)
-            else:
+        def execute(self, sql: str, params=None):
+            if params is None:
                 self.cursor.execute(sql)
+            else:
+                self.cursor.execute(sql, params)
 
     return SQLiteEngine(DATABASE_PATH), True
 
 
+def _serializar_json(valor: Any) -> str:
+    """Serializa estruturas de dados sem perder caracteres UTF-8."""
+    return json.dumps(valor, ensure_ascii=False, default=str)
+
+
+def _desserializar_json(valor: Any, padrao: Any) -> Any:
+    """Recupera JSON salvo sem interromper registros legados incompletos."""
+    if valor is None or valor == "":
+        return padrao
+    if isinstance(valor, float) and str(valor).lower() == "nan":
+        return padrao
+    if isinstance(valor, (dict, list)):
+        return valor
+    try:
+        return json.loads(valor)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return padrao
+
+
+def _normalizar_datetime(valor: Any) -> datetime:
+    """Converte valores vindos de SQLite, pandas ou TiDB para datetime."""
+    if isinstance(valor, datetime):
+        return valor
+    if hasattr(valor, "to_pydatetime"):
+        return valor.to_pydatetime()
+    if isinstance(valor, str):
+        try:
+            return datetime.fromisoformat(valor)
+        except ValueError:
+            try:
+                return datetime.strptime(valor, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                pass
+    return datetime.now()
+
+
 class _DBManager:
-    """Gerenciador de banco de dados com suporte a TiDB Cloud e SQLite."""
+    """Gerenciador único de solicitações e usuários do GRM."""
 
     def __init__(self):
         self.engine, self._is_sqlite = _init_engine()
-        self._tables_created = False
         self._init_tables()
 
-    def _init_tables(self):
-        """Cria as tabelas necessárias no banco de dados."""
+    def _init_tables(self) -> None:
         if self._is_sqlite:
             self._init_tables_sqlite()
         else:
             self._init_tables_tidb()
-        self._tables_created = True
 
-    def _init_tables_sqlite(self):
-        """Cria tabelas no SQLite."""
+    def _init_tables_sqlite(self) -> None:
         with self.engine.session() as session:
-            # Tabela de solicitações
-            session.execute('''
+            session.execute(
+                """
                 CREATE TABLE IF NOT EXISTS solicitacoes (
                     protocolo TEXT PRIMARY KEY,
                     empresa TEXT NOT NULL,
@@ -151,294 +145,268 @@ class _DBManager:
                     observacao_triagem TEXT,
                     observacao_almoxarifado TEXT,
                     dados_compra TEXT,
+                    dados_logistica TEXT,
+                    historico_status TEXT,
                     estoque TEXT,
                     itens TEXT NOT NULL,
                     criado_em TEXT DEFAULT (datetime('now')),
                     atualizado_em TEXT DEFAULT (datetime('now'))
                 )
-            ''')
+                """
+            )
+            colunas = {
+                linha[1]
+                for linha in session.cursor.execute("PRAGMA table_info(solicitacoes)").fetchall()
+            }
+            for coluna in ("dados_logistica", "historico_status"):
+                if coluna not in colunas:
+                    session.execute(f"ALTER TABLE solicitacoes ADD COLUMN {coluna} TEXT")
 
-            # Tabela de usuários
-            session.execute('''
+            session.execute(
+                """
                 CREATE TABLE IF NOT EXISTS usuarios (
                     chave TEXT PRIMARY KEY,
                     rotulo TEXT NOT NULL,
                     senha TEXT NOT NULL,
                     permissoes TEXT NOT NULL
                 )
-            ''')
-
-            # Inserir usuários padrão se a tabela estiver vazia
-            result = session.cursor.execute("SELECT COUNT(*) as count FROM usuarios")
-            total = result.fetchone()[0]
+                """
+            )
+            total = session.cursor.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
             if total == 0:
                 session.execute(
                     "INSERT INTO usuarios (chave, rotulo, senha, permissoes) VALUES (?, ?, ?, ?)",
-                    ("compras", "Compras", "Grm@2026", "atendimento,compras")
+                    ("compras", "Compras", "Grm@2026", "atendimento,compras"),
                 )
                 session.execute(
                     "INSERT INTO usuarios (chave, rotulo, senha, permissoes) VALUES (?, ?, ?, ?)",
-                    ("almoxarifado", "Almoxarifado", "Grm@2026", "almoxarifado")
+                    ("almoxarifado", "Almoxarifado", "Grm@2026", "almoxarifado"),
                 )
 
-    def _init_tables_tidb(self):
-        """Cria tabelas no TiDB Cloud."""
-        sql = """
-        CREATE TABLE IF NOT EXISTS solicitacoes (
-            protocolo VARCHAR(64) PRIMARY KEY,
-            empresa VARCHAR(255) NOT NULL,
-            solicitante VARCHAR(255) NOT NULL,
-            setor VARCHAR(255) NOT NULL DEFAULT '',
-            prioridade VARCHAR(50) NOT NULL DEFAULT 'Normal',
-            status VARCHAR(100) NOT NULL,
-            destino VARCHAR(100) DEFAULT '',
-            triado_por VARCHAR(100) DEFAULT '',
-            observacao_triagem TEXT,
-            observacao_almoxarifado TEXT,
-            dados_compra TEXT,
-            estoque TEXT,
-            itens TEXT NOT NULL,
-            criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+    def _executar_tidb(self, sql: str, params: dict[str, Any] | None = None) -> None:
+        """Executa escrita transacional por meio da sessão SQLAlchemy do Streamlit."""
+        from sqlalchemy import text
 
-        CREATE TABLE IF NOT EXISTS usuarios (
-            chave VARCHAR(64) PRIMARY KEY,
-            rotulo VARCHAR(100) NOT NULL,
-            senha VARCHAR(255) NOT NULL,
-            permissoes VARCHAR(500) NOT NULL
-        );
+        with self.engine.session as session:
+            session.execute(text(sql), params or {})
+            session.commit()
 
-        INSERT IGNORE INTO usuarios (chave, rotulo, senha, permissoes)
-        VALUES ('compras', 'Compras', 'Grm@2026', 'atendimento,compras');
+    def _consultar_tidb(self, sql: str, params: dict[str, Any] | None = None):
+        """Executa consulta parametrizada no TiDB sem depender do cache de leitura do Streamlit."""
+        import pandas as pd
+        from sqlalchemy import text
 
-        INSERT IGNORE INTO usuarios (chave, rotulo, senha, permissoes)
-        VALUES ('almoxarifado', 'Almoxarifado', 'Grm@2026', 'almoxarifado');
-        """
-        self.engine.run(sql)
+        with self.engine.session as session:
+            resultado = session.execute(text(sql), params or {})
+            linhas = [dict(linha) for linha in resultado.mappings().all()]
+        return pd.DataFrame(linhas)
 
-    # ─── Solicitações ────────────────────────────────────────────────────────
+    def _init_tables_tidb(self) -> None:
+        self._executar_tidb(
+            """
+            CREATE TABLE IF NOT EXISTS solicitacoes (
+                protocolo VARCHAR(64) PRIMARY KEY,
+                empresa VARCHAR(255) NOT NULL,
+                solicitante VARCHAR(255) NOT NULL,
+                setor VARCHAR(255) NOT NULL DEFAULT '',
+                prioridade VARCHAR(50) NOT NULL DEFAULT 'Normal',
+                status VARCHAR(100) NOT NULL,
+                destino VARCHAR(100) DEFAULT '',
+                triado_por VARCHAR(100) DEFAULT '',
+                observacao_triagem TEXT,
+                observacao_almoxarifado TEXT,
+                dados_compra TEXT,
+                dados_logistica TEXT,
+                historico_status TEXT,
+                estoque TEXT,
+                itens TEXT NOT NULL,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        self._executar_tidb(
+            """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                chave VARCHAR(64) PRIMARY KEY,
+                rotulo VARCHAR(100) NOT NULL,
+                senha VARCHAR(255) NOT NULL,
+                permissoes VARCHAR(500) NOT NULL
+            )
+            """
+        )
+        self._executar_tidb(
+            """
+            INSERT IGNORE INTO usuarios (chave, rotulo, senha, permissoes)
+            VALUES ('compras', 'Compras', 'Grm@2026', 'atendimento,compras')
+            """
+        )
+        self._executar_tidb(
+            """
+            INSERT IGNORE INTO usuarios (chave, rotulo, senha, permissoes)
+            VALUES ('almoxarifado', 'Almoxarifado', 'Grm@2026', 'almoxarifado')
+            """
+        )
+
+        from sqlalchemy import text
+
+        with self.engine.session as session:
+            colunas = {
+                str(linha[0])
+                for linha in session.execute(text("SHOW COLUMNS FROM solicitacoes")).all()
+            }
+            for coluna in ("dados_logistica", "historico_status"):
+                if coluna not in colunas:
+                    session.execute(text(f"ALTER TABLE solicitacoes ADD COLUMN {coluna} TEXT"))
+            session.commit()
 
     def salvar_solicitacao(self, solicitacao: dict[str, Any]) -> None:
-        """Salva ou atualiza uma solicitação no banco."""
         if self._is_sqlite:
             self._salvar_sqlite(solicitacao)
         else:
             self._salvar_tidb(solicitacao)
 
-    def _salvar_sqlite(self, solicitacao: dict[str, Any]) -> None:
-        """Salva no SQLite."""
-        criado_em = solicitacao.get("criado_em")
-        atualizado_em = solicitacao.get("atualizado_em")
-
+    @staticmethod
+    def _valores_solicitacao(solicitacao: dict[str, Any]) -> dict[str, Any]:
+        criado_em = solicitacao.get("criado_em", datetime.now())
+        atualizado_em = solicitacao.get("atualizado_em", datetime.now())
         if isinstance(criado_em, datetime):
             criado_em = criado_em.isoformat()
         if isinstance(atualizado_em, datetime):
             atualizado_em = atualizado_em.isoformat()
+        return {
+            "protocolo": solicitacao["protocolo"],
+            "empresa": solicitacao["empresa"],
+            "solicitante": solicitacao["solicitante"],
+            "setor": solicitacao.get("setor", ""),
+            "prioridade": solicitacao.get("prioridade", "Normal"),
+            "status": solicitacao["status"],
+            "destino": solicitacao.get("destino", ""),
+            "triado_por": solicitacao.get("triado_por", ""),
+            "observacao_triagem": solicitacao.get("observacao_triagem", ""),
+            "observacao_almoxarifado": solicitacao.get("observacao_almoxarifado", ""),
+            "dados_compra": _serializar_json(solicitacao.get("dados_compra", {})),
+            "dados_logistica": _serializar_json(solicitacao.get("dados_logistica", {})),
+            "historico_status": _serializar_json(solicitacao.get("historico_status", [])),
+            "estoque": _serializar_json(solicitacao.get("estoque", [])),
+            "itens": _serializar_json(solicitacao["itens"]),
+            "criado_em": criado_em,
+            "atualizado_em": atualizado_em,
+        }
 
+    def _salvar_sqlite(self, solicitacao: dict[str, Any]) -> None:
+        valores = self._valores_solicitacao(solicitacao)
         with self.engine.session() as session:
-            session.execute('''
+            session.execute(
+                """
                 INSERT OR REPLACE INTO solicitacoes (
-                    protocolo, empresa, solicitante, setor, prioridade, status,
-                    destino, triado_por, observacao_triagem, observacao_almoxarifado,
-                    dados_compra, estoque, itens, criado_em, atualizado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                solicitacao['protocolo'],
-                solicitacao['empresa'],
-                solicitacao['solicitante'],
-                solicitacao.get('setor', ''),
-                solicitacao['prioridade'],
-                solicitacao['status'],
-                solicitacao.get('destino', ''),
-                solicitacao.get('triado_por', ''),
-                solicitacao.get('observacao_triagem', ''),
-                solicitacao.get('observacao_almoxarifado', ''),
-                json.dumps(solicitacao.get('dados_compra', {})),
-                json.dumps(solicitacao.get('estoque', [])),
-                json.dumps(solicitacao['itens']),
-                criado_em,
-                atualizado_em,
-            ))
+                    protocolo, empresa, solicitante, setor, prioridade, status, destino,
+                    triado_por, observacao_triagem, observacao_almoxarifado, dados_compra,
+                    dados_logistica, historico_status, estoque, itens, criado_em, atualizado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                tuple(valores.values()),
+            )
 
     def _salvar_tidb(self, solicitacao: dict[str, Any]) -> None:
-        """Salva no TiDB Cloud via INSERT ... ON DUPLICATE KEY UPDATE."""
-        criado_em = solicitacao.get("criado_em")
-        atualizado_em = solicitacao.get("atualizado_em")
-
-        if isinstance(criado_em, datetime):
-            criado_em = criado_em.isoformat()
-        if isinstance(atualizado_em, datetime):
-            atualizado_em = atualizado_em.isoformat()
-
-        with self.engine.session() as session:
-            session.execute('''
-                INSERT INTO solicitacoes (
-                    protocolo, empresa, solicitante, setor, prioridade, status,
-                    destino, triado_por, observacao_triagem, observacao_almoxarifado,
-                    dados_compra, estoque, itens, criado_em, atualizado_em
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    empresa=VALUES(empresa), solicitante=VALUES(solicitante),
-                    setor=VALUES(setor), prioridade=VALUES(prioridade),
-                    status=VALUES(status), destino=VALUES(destino),
-                    triado_por=VALUES(triado_por),
-                    observacao_triagem=VALUES(observacao_triagem),
-                    observacao_almoxarifado=VALUES(observacao_almoxarifado),
-                    dados_compra=VALUES(dados_compra),
-                    estoque=VALUES(estoque), itens=VALUES(itens),
-                    atualizado_em=VALUES(atualizado_em)
-            ''', (
-                solicitacao['protocolo'],
-                solicitacao['empresa'],
-                solicitacao['solicitante'],
-                solicitacao.get('setor', ''),
-                solicitacao['prioridade'],
-                solicitacao['status'],
-                solicitacao.get('destino', ''),
-                solicitacao.get('triado_por', ''),
-                solicitacao.get('observacao_triagem', ''),
-                solicitacao.get('observacao_almoxarifado', ''),
-                json.dumps(solicitacao.get('dados_compra', {})),
-                json.dumps(solicitacao.get('estoque', [])),
-                json.dumps(solicitacao['itens']),
-                criado_em,
-                atualizado_em,
-            ))
+        valores = self._valores_solicitacao(solicitacao)
+        self._executar_tidb(
+            """
+            INSERT INTO solicitacoes (
+                protocolo, empresa, solicitante, setor, prioridade, status, destino,
+                triado_por, observacao_triagem, observacao_almoxarifado, dados_compra,
+                dados_logistica, historico_status, estoque, itens, criado_em, atualizado_em
+            ) VALUES (
+                :protocolo, :empresa, :solicitante, :setor, :prioridade, :status, :destino,
+                :triado_por, :observacao_triagem, :observacao_almoxarifado, :dados_compra,
+                :dados_logistica, :historico_status, :estoque, :itens, :criado_em, :atualizado_em
+            )
+            ON DUPLICATE KEY UPDATE
+                empresa=VALUES(empresa), solicitante=VALUES(solicitante), setor=VALUES(setor),
+                prioridade=VALUES(prioridade), status=VALUES(status), destino=VALUES(destino),
+                triado_por=VALUES(triado_por), observacao_triagem=VALUES(observacao_triagem),
+                observacao_almoxarifado=VALUES(observacao_almoxarifado),
+                dados_compra=VALUES(dados_compra), dados_logistica=VALUES(dados_logistica),
+                historico_status=VALUES(historico_status), estoque=VALUES(estoque), itens=VALUES(itens),
+                atualizado_em=VALUES(atualizado_em)
+            """,
+            valores,
+        )
 
     def carregar_todas(self) -> list[dict[str, Any]]:
-        """Carrega todas as solicitações do banco."""
         if self._is_sqlite:
-            return self._carregar_todas_sqlite()
+            dataframe = self.engine.query("SELECT * FROM solicitacoes ORDER BY criado_em DESC")
         else:
-            return self._carregar_todas_tidb()
-
-    def _carregar_todas_sqlite(self) -> list[dict[str, Any]]:
-        """Carrega do SQLite."""
-        import pandas as pd
-        df = self.engine.query("SELECT * FROM solicitacoes ORDER BY criado_em DESC")
-        return [self._parse_row_sqlite(row) for _, row in df.iterrows()]
-
-    def _carregar_todas_tidb(self) -> list[dict[str, Any]]:
-        """Carrega do TiDB Cloud."""
-        df = self.engine.query("SELECT * FROM solicitacoes ORDER BY criado_em DESC", ttl=60)
-        return [self._parse_row_mysql(row) for _, row in df.iterrows()]
+            dataframe = self._consultar_tidb("SELECT * FROM solicitacoes ORDER BY criado_em DESC")
+        return [self._parse_row(linha) for _, linha in dataframe.iterrows()]
 
     def carregar_por_protocolo(self, protocolo: str) -> dict[str, Any] | None:
-        """Carrega uma solicitação pelo protocolo."""
         if self._is_sqlite:
-            return self._carregar_por_protocolo_sqlite(protocolo)
+            dataframe = self.engine.query(
+                "SELECT * FROM solicitacoes WHERE protocolo = ?", params=(protocolo,)
+            )
         else:
-            return self._carregar_por_protocolo_tidb(protocolo)
-
-    def _carregar_por_protocolo_sqlite(self, protocolo: str) -> dict[str, Any] | None:
-        """Carrega do SQLite."""
-        import pandas as pd
-        df = self.engine.query(
-            "SELECT * FROM solicitacoes WHERE protocolo = ?", params=(protocolo,)
-        )
-        if df.empty:
+            dataframe = self._consultar_tidb(
+                "SELECT * FROM solicitacoes WHERE protocolo = :protocolo",
+                {"protocolo": protocolo},
+            )
+        if dataframe.empty:
             return None
-        return self._parse_row_sqlite(df.iloc[0])
+        return self._parse_row(dataframe.iloc[0])
 
-    def _carregar_por_protocolo_tidb(self, protocolo: str) -> dict[str, Any] | None:
-        """Carrega do TiDB Cloud."""
-        import pandas as pd
-        df = self.engine.query(
-            "SELECT * FROM solicitacoes WHERE protocolo = %s",
-            params=(protocolo,),
-            ttl=0,
-        )
-        if df.empty:
-            return None
-        return self._parse_row_mysql(df.iloc[0])
-
-    def _parse_row_sqlite(self, row) -> dict[str, Any]:
-        """Parseia uma linha do SQLite para dict."""
+    @staticmethod
+    def _parse_row(row) -> dict[str, Any]:
         solicitacao = dict(row)
-        solicitacao['itens'] = json.loads(solicitacao['itens'])
-        solicitacao['dados_compra'] = json.loads(solicitacao['dados_compra']) if solicitacao['dados_compra'] else {}
-        solicitacao['estoque'] = json.loads(solicitacao['estoque']) if solicitacao['estoque'] else []
-        try:
-            solicitacao['criado_em'] = datetime.fromisoformat(solicitacao['criado_em'])
-        except (TypeError, ValueError):
-            solicitacao['criado_em'] = datetime.now()
-        try:
-            solicitacao['atualizado_em'] = datetime.fromisoformat(solicitacao['atualizado_em'])
-        except (TypeError, ValueError):
-            solicitacao['atualizado_em'] = datetime.now()
-        return solicitacao
-
-    def _parse_row_mysql(self, row) -> dict[str, Any]:
-        """Parseia uma linha do MySQL/TiDB para dict."""
-        solicitacao = dict(row)
-        solicitacao['itens'] = json.loads(solicitacao['itens'])
-        solicitacao['dados_compra'] = json.loads(solicitacao['dados_compra']) if solicitacao['dados_compra'] else {}
-        solicitacao['estoque'] = json.loads(solicitacao['estoque']) if solicitacao['estoque'] else []
-        try:
-            solicitacao['criado_em'] = solicitacao['criado_em'].to_pydatetime() if hasattr(solicitacao['criado_em'], 'to_pydatetime') else datetime.strptime(str(solicitacao['criado_em']), '%Y-%m-%d %H:%M:%S')
-        except Exception:
-            solicitacao['criado_em'] = datetime.now()
-        try:
-            solicitacao['atualizado_em'] = solicitacao['atualizado_em'].to_pydatetime() if hasattr(solicitacao['atualizado_em'], 'to_pydatetime') else datetime.strptime(str(solicitacao['atualizado_em']), '%Y-%m-%d %H:%M:%S')
-        except Exception:
-            solicitacao['atualizado_em'] = datetime.now()
+        solicitacao["itens"] = _desserializar_json(solicitacao.get("itens"), [])
+        solicitacao["dados_compra"] = _desserializar_json(solicitacao.get("dados_compra"), {})
+        solicitacao["dados_logistica"] = _desserializar_json(solicitacao.get("dados_logistica"), {})
+        solicitacao["historico_status"] = _desserializar_json(solicitacao.get("historico_status"), [])
+        solicitacao["estoque"] = _desserializar_json(solicitacao.get("estoque"), [])
+        solicitacao["criado_em"] = _normalizar_datetime(solicitacao.get("criado_em"))
+        solicitacao["atualizado_em"] = _normalizar_datetime(solicitacao.get("atualizado_em"))
         return solicitacao
 
     def obter_sequencia_protocolo(self) -> int:
-        """Retorna o próximo número de sequência para o protocolo de hoje."""
         hoje = datetime.now().strftime("%Y%m%d")
         padrao = f"GRM-{hoje}-%"
-
         if self._is_sqlite:
-            df = self.engine.query(
-                "SELECT COUNT(*) as count FROM solicitacoes WHERE protocolo LIKE ?",
+            dataframe = self.engine.query(
+                "SELECT COUNT(*) AS count FROM solicitacoes WHERE protocolo LIKE ?",
                 params=(padrao,),
             )
         else:
-            df = self.engine.query(
-                "SELECT COUNT(*) as count FROM solicitacoes WHERE protocolo LIKE %s",
-                params=(padrao,),
-                ttl=0,
+            dataframe = self._consultar_tidb(
+                "SELECT COUNT(*) AS count FROM solicitacoes WHERE protocolo LIKE :padrao",
+                {"padrao": padrao},
             )
-        return int(df.iloc[0]['count']) + 1
-
-    # ─── Usuários ─────────────────────────────────────────────────────────────
+        return int(dataframe.iloc[0]["count"]) + 1
 
     def obter_usuario(self, chave: str) -> dict[str, Any] | None:
-        """Retorna os dados de um usuário pela chave."""
         if self._is_sqlite:
-            import pandas as pd
-            df = self.engine.query(
+            dataframe = self.engine.query(
                 "SELECT * FROM usuarios WHERE chave = ?", params=(chave,)
             )
         else:
-            import pandas as pd
-            df = self.engine.query(
-                "SELECT * FROM usuarios WHERE chave = %s",
-                params=(chave,),
-                ttl=0,
+            dataframe = self._consultar_tidb(
+                "SELECT * FROM usuarios WHERE chave = :chave",
+                {"chave": chave},
             )
-        if df.empty:
+        if dataframe.empty:
             return None
-        return dict(df.iloc[0])
+        return dict(dataframe.iloc[0])
 
     def obter_senha_usuario(self, chave: str) -> str | None:
-        """Retorna a senha de um usuário pela chave."""
         usuario = self.obter_usuario(chave)
-        if usuario:
-            return usuario["senha"]
-        return None
+        return str(usuario["senha"]) if usuario else None
 
     def obter_permissoes_usuario(self, chave: str) -> list[str]:
-        """Retorna a lista de permissões de um usuário."""
         usuario = self.obter_usuario(chave)
-        if usuario:
-            return usuario["permissoes"].split(",")
-        return []
+        if not usuario:
+            return []
+        return [permissao for permissao in str(usuario["permissoes"]).split(",") if permissao]
 
 
-# Instância global do gerenciador de banco de dados
 _manager = _DBManager()
 
 

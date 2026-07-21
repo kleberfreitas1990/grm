@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.4.0"
+APP_VERSION = "1.5.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -87,11 +87,20 @@ EMPRESAS = [
 
 STATUS_META = {
     "Aguardando triagem": ("#F59E0B", "Solicitação registrada e aguardando atendimento."),
-    "Em análise no almoxarifado": ("#2563EB", "Estoque em verificação pelo almoxarifado."),
-    "Em processo de compra": ("#7C3AED", "Solicitação encaminhada para o setor de compras."),
-    "Atendido pelo almoxarifado": ("#059669", "Estoque confirmado pelo almoxarifado."),
-    "Compra solicitada": ("#DB2777", "Dados da compra registrados para prosseguimento."),
+    "Em análise no almoxarifado": ("#2563EB", "O almoxarifado está verificando o estoque."),
+    "Em processo de compra": ("#7C3AED", "A solicitação está em tratamento pelo setor de compras."),
+    "Em processo de autorização": ("#9333EA", "A compra aguarda a autorização necessária."),
+    "Compra solicitada": ("#DB2777", "Os dados de compra foram registrados."),
+    "Aguardando recebimento no almoxarifado": ("#EA580C", "A compra foi concluída e aguarda chegada ao almoxarifado."),
+    "Aguardando envio ao solicitante": ("#0891B2", "O material está disponível para separação e envio."),
+    "Produto enviado ao solicitante": ("#059669", "O almoxarifado registrou o envio ao solicitante."),
+    "Atendido pelo almoxarifado": ("#059669", "Registro legado concluído pelo almoxarifado."),
 }
+
+STATUS_CONCLUIDOS = {"Produto enviado ao solicitante", "Atendido pelo almoxarifado"}
+STATUS_COMPRAS = {"Em processo de compra", "Em processo de autorização", "Compra solicitada"}
+STATUS_RECEBIMENTO = {"Aguardando recebimento no almoxarifado"}
+STATUS_ENVIO = {"Aguardando envio ao solicitante"}
 
 
 def configurar_pagina() -> None:
@@ -177,6 +186,14 @@ def configurar_pagina() -> None:
             }
             .flow-step strong { display: block; margin: .42rem 0 .2rem; }
             .flow-step span { color: #64748B; font-size: .78rem; }
+            .flow-step.done { background: #ECFDF5; border-color: #6EE7B7; }
+            .flow-step.done .number { background: #D1FAE5; color: #047857; }
+            .flow-step.active { background: #EFF6FF; border-color: #60A5FA; box-shadow: 0 0 0 2px rgba(37, 99, 235, .10); }
+            .flow-step.active .number { background: #DBEAFE; color: #1D4ED8; }
+            .legend-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: .8rem 1rem; min-height: 96px; }
+            .legend-card .legend-value { color: #0F172A; font-size: 1.55rem; font-weight: 800; }
+            .legend-card .legend-label { color: #475569; font-size: .8rem; font-weight: 700; }
+            .legend-card .legend-detail { color: #64748B; font-size: .74rem; }
             .small-note { color: #64748B; font-size: .83rem; }
 
             /* Resumo de pendências por empresa */
@@ -242,10 +259,27 @@ def localizar_solicitacao(protocolo: str) -> dict[str, Any] | None:
     return db.carregar_por_protocolo(protocolo)
 
 
-def atualizar_status(solicitacao: dict[str, Any], novo_status: str) -> None:
-    """Atualiza status e preserva a data/hora da última movimentação."""
+def atualizar_status(
+    solicitacao: dict[str, Any],
+    novo_status: str,
+    responsavel: str = "",
+    observacao: str = "",
+) -> None:
+    """Atualiza o status e registra uma movimentação consultável pelo solicitante."""
+    agora = datetime.now()
+    status_anterior = solicitacao.get("status", "")
     solicitacao["status"] = novo_status
-    solicitacao["atualizado_em"] = datetime.now()
+    solicitacao["atualizado_em"] = agora
+    historico = solicitacao.setdefault("historico_status", [])
+    if not historico or status_anterior != novo_status:
+        historico.append(
+            {
+                "status": novo_status,
+                "ocorrido_em": agora.isoformat(),
+                "responsavel": responsavel or "Sistema",
+                "observacao": observacao.strip(),
+            }
+        )
     db.salvar_solicitacao(solicitacao)
 
 
@@ -275,15 +309,15 @@ def renderizar_cabecalho() -> None:
 
     total = len(solicitacoes)
     almoxarifado = sum(item["status"] == "Em análise no almoxarifado" for item in solicitacoes)
-    compras = sum(item["status"] in {"Em processo de compra", "Compra solicitada", "Comprado", "Em processo de autorização"} for item in solicitacoes)
-    finalizados = sum(item["status"] == "Atendido pelo almoxarifado" for item in solicitacoes)
+    compras = sum(item["status"] in STATUS_COMPRAS for item in solicitacoes)
+    finalizados = sum(item["status"] in STATUS_CONCLUIDOS for item in solicitacoes)
 
     colunas = st.columns(4)
     dados = [
         ("Solicitações", total, "total no sistema"),
         ("No almoxarifado", almoxarifado, "em verificação de estoque"),
         ("Em compras", compras, "em processo de aquisição"),
-        ("Finalizados", finalizados, "atendidos"),
+        ("Concluídos", finalizados, "materiais enviados"),
     ]
     for coluna, (rotulo, valor, legenda) in zip(colunas, dados):
         coluna.markdown(
@@ -368,6 +402,15 @@ def pagina_nova_solicitacao_simplificada() -> None:
             "triado_por": "",
             "estoque": [],
             "dados_compra": {},
+            "dados_logistica": {},
+            "historico_status": [
+                {
+                    "status": "Em análise no almoxarifado",
+                    "ocorrido_em": agora.isoformat(),
+                    "responsavel": solicitante.strip(),
+                    "observacao": "Solicitação registrada pelo solicitante.",
+                }
+            ],
         }
         db.salvar_solicitacao(solicitacao)
         st.session_state.solicitacoes = db.carregar_todas()
@@ -380,140 +423,210 @@ def pagina_nova_solicitacao_simplificada() -> None:
         st.success(f"Sua solicitação foi enviada com sucesso! Anote este código para acompanhar depois: **{protocolo}**")
 
 
-def renderizar_card_solicitacao(solicitacao: dict) -> None:
-    """Renderiza um card compacto para a grade de acompanhamento com expander."""
-    cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
+def _formatar_data_hora(valor: Any) -> str:
+    """Apresenta datas do histórico em formato uniforme e legível."""
+    if not valor:
+        return "Não informado"
+    if isinstance(valor, datetime):
+        data_hora = valor
+    else:
+        try:
+            data_hora = datetime.fromisoformat(str(valor))
+        except ValueError:
+            return str(valor)
+    return data_hora.strftime("%d/%m/%Y às %H:%M")
 
-    # Resumo no card
+
+def _categoria_status(status: str) -> str:
+    if status in {"Aguardando triagem", "Em análise no almoxarifado"}:
+        return "Estoque"
+    if status in STATUS_COMPRAS:
+        return "Compras"
+    if status in STATUS_RECEBIMENTO:
+        return "Recebimento"
+    if status in STATUS_ENVIO:
+        return "Envio"
+    return "Concluído"
+
+
+def renderizar_resumo_andamento(solicitacoes: list[dict[str, Any]]) -> None:
+    """Mostra legenda e volume de solicitações em andamento ao solicitante."""
+    em_andamento = [item for item in solicitacoes if item.get("status") not in STATUS_CONCLUIDOS]
+    categorias = [
+        ("Em andamento", len(em_andamento), "solicitações ainda não concluídas", "#0F3D62"),
+        ("Estoque", sum(_categoria_status(item.get("status", "")) == "Estoque" for item in em_andamento), "em verificação no almoxarifado", "#2563EB"),
+        ("Compras", sum(_categoria_status(item.get("status", "")) == "Compras" for item in em_andamento), "em compra ou autorização", "#7C3AED"),
+        ("Recebimento", sum(_categoria_status(item.get("status", "")) == "Recebimento" for item in em_andamento), "aguardando chegada ao almoxarifado", "#EA580C"),
+        ("Envio", sum(_categoria_status(item.get("status", "")) == "Envio" for item in em_andamento), "prontas para o solicitante", "#0891B2"),
+    ]
+    colunas = st.columns(len(categorias))
+    for coluna, (rotulo, quantidade, detalhe, cor) in zip(colunas, categorias):
+        coluna.markdown(
+            f'<div class="legend-card" style="border-top:4px solid {cor}">'
+            f'<div class="legend-value">{quantidade}</div>'
+            f'<div class="legend-label">{rotulo}</div>'
+            f'<div class="legend-detail">{detalhe}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    st.caption("Legenda do fluxo: azul = estoque, roxo = compras, laranja = recebimento, azul-petróleo = envio e verde = concluído.")
+
+
+def renderizar_fluxo_solicitacao(solicitacao: dict[str, Any]) -> None:
+    """Exibe uma linha do tempo visual de acordo com o status atual."""
+    status = solicitacao.get("status", "")
+    etapas = [
+        ("Solicitação", "Pedido registrado", True, status == "Aguardando triagem"),
+        ("Estoque", "Verificação pelo almoxarifado", status not in {"Aguardando triagem"}, status == "Em análise no almoxarifado"),
+        ("Compras", "Aquisição e autorização", status in STATUS_RECEBIMENTO | STATUS_ENVIO | STATUS_CONCLUIDOS, status in STATUS_COMPRAS),
+        ("Recebimento", "Chegada ao almoxarifado", status in STATUS_ENVIO | STATUS_CONCLUIDOS, status in STATUS_RECEBIMENTO),
+        ("Envio", "Despacho ao solicitante", status in STATUS_CONCLUIDOS, status in STATUS_ENVIO),
+    ]
+    colunas = st.columns(len(etapas))
+    for indice, (titulo, descricao, concluida, ativa) in enumerate(etapas, start=1):
+        classe = "done" if concluida else "active" if ativa else ""
+        colunas[indice - 1].markdown(
+            f'<div class="flow-step {classe}"><span class="number">{indice}</span>'
+            f'<strong>{escape(titulo)}</strong><span>{escape(descricao)}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def renderizar_dados_logistica(solicitacao: dict[str, Any]) -> None:
+    """Apresenta os registros de recebimento e de envio do almoxarifado."""
+    dados = solicitacao.get("dados_logistica") or {}
+    recebimento = dados.get("recebimento") or {}
+    envio = dados.get("envio") or {}
+    if recebimento:
+        st.markdown("#### Recebimento no almoxarifado")
+        st.write(f"**Recebido por:** {recebimento.get('recebido_por', 'Não informado')}")
+        st.write(f"**Data e hora:** {_formatar_data_hora(recebimento.get('data_hora'))}")
+        st.write(f"**Documento de referência:** {recebimento.get('documento', 'Não informado')}")
+        if recebimento.get("observacao"):
+            st.write(f"**Observação:** {recebimento['observacao']}")
+    if envio:
+        st.markdown("#### Envio ao solicitante")
+        st.success(
+            f"Produto enviado por **{envio.get('enviado_por', 'Não informado')}** "
+            f"para **{envio.get('destinatario', solicitacao.get('solicitante', 'Não informado'))}** "
+            f"em {_formatar_data_hora(envio.get('data_hora'))}."
+        )
+        st.write(f"**Modalidade de entrega:** {envio.get('modalidade', 'Não informada')}")
+        if envio.get("observacao"):
+            st.write(f"**Observação do almoxarifado:** {envio['observacao']}")
+
+
+def renderizar_historico_status(solicitacao: dict[str, Any]) -> None:
+    historico = solicitacao.get("historico_status") or []
+    if not historico:
+        return
+    st.markdown("#### Histórico de movimentações")
+    linhas = [
+        {
+            "Data e hora": _formatar_data_hora(item.get("ocorrido_em")),
+            "Status": item.get("status", "Não informado"),
+            "Responsável": item.get("responsavel", "Não informado"),
+            "Observação": item.get("observacao", ""),
+        }
+        for item in reversed(historico)
+    ]
+    st.dataframe(pd.DataFrame(linhas), hide_index=True, width="stretch")
+
+
+def renderizar_card_solicitacao(solicitacao: dict) -> None:
+    """Renderiza um card compacto para a grade de acompanhamento."""
+    cor, _ = STATUS_META.get(solicitacao["status"], ("#475569", ""))
     empresa_curta = solicitacao["empresa"].split(" - ")[0] if " - " in solicitacao["empresa"] else solicitacao["empresa"][:25]
-    itens_resumo = ", ".join(
-        [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
-    )
+    itens_resumo = ", ".join(f"{item['Produto']} (x{item['Quantidade']})" for item in solicitacao["itens"][:3])
     if len(solicitacao["itens"]) > 3:
         itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
-
-    card_html = f"""
-    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.6rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
-            <div>
-                <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
-                <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(empresa_curta)}</div>
-                <span style="font-size:.78rem;color:#64748B;">{itens_resumo}</span>
-            </div>
-            <span class="status-chip" style="background:{cor};">{escape(solicitacao['status'])}</span>
-        </div>
-    </div>
-    """
-    st.markdown(card_html, unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:.8rem 1rem;margin-bottom:.6rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;"><div>'
+        f'<span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao["protocolo"])}</span>'
+        f'<div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(empresa_curta)}</div>'
+        f'<span style="font-size:.78rem;color:#64748B;">{escape(itens_resumo)}</span></div>'
+        f'<span class="status-chip" style="background:{cor};">{escape(solicitacao["status"])}</span></div></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def renderizar_grade_acompanhamento(solicitacoes: list[dict]) -> None:
-    """Renderiza a grade de solicitações com expander para detalhes."""
+    """Renderiza cards de acompanhamento com o fluxo e os dados operacionais."""
     if not solicitacoes:
         st.info("Nenhuma solicitação encontrada.")
         return
-
     st.caption(f"**{len(solicitacoes)}** solicitação(ões) encontrada(s)")
-
     for solicitacao in solicitacoes:
-        cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
-        empresa_curta = solicitacao["empresa"].split(" - ")[0] if " - " in solicitacao["empresa"] else solicitacao["empresa"][:25]
-        itens_resumo = ", ".join(
-            [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
-        )
-        if len(solicitacao["itens"]) > 3:
-            itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
-
-        card_html = f"""
-        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
-                <div>
-                    <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
-                    <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(empresa_curta)}</div>
-                    <span style="font-size:.78rem;color:#64748B;">{itens_resumo}</span>
-                </div>
-                <span class="status-chip" style="background:{cor};">{escape(solicitacao['status'])}</span>
-            </div>
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
-
+        renderizar_card_solicitacao(solicitacao)
         with st.expander("Ver detalhes completos", expanded=False):
+            renderizar_fluxo_solicitacao(solicitacao)
             detalhes, itens_coluna = st.columns([1, 1.2])
             with detalhes:
                 st.markdown("#### Dados da solicitação")
                 st.write(f"**Empresa:** {solicitacao['empresa']}")
                 st.write(f"**Solicitante:** {solicitacao['solicitante']}")
                 st.write(f"**Prioridade:** {solicitacao['prioridade']}")
-                if solicitacao["destino"]:
+                if solicitacao.get("destino"):
                     st.write(f"**Encaminhamento:** {solicitacao['destino']}")
-                st.write(f"**Última atualização:** {solicitacao['atualizado_em'].strftime('%d/%m/%Y às %H:%M')}")
+                st.write(f"**Última atualização:** {_formatar_data_hora(solicitacao.get('atualizado_em'))}")
             with itens_coluna:
                 st.markdown("#### Itens solicitados")
                 st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
-
             if solicitacao.get("estoque"):
-                st.markdown("#### 📦 Conferência do Almoxarifado")
-                df_estoque = pd.DataFrame(solicitacao["estoque"])
-                
-                # Mapear cores para a situação para facilitar a leitura do solicitante
-                def colorir_situacao(val):
-                    cor = "#10B981" if val == "Disponível" else ("#F59E0B" if val == "Parcial" else "#EF4444")
-                    return f'background-color: {cor}; color: white; font-weight: bold; border-radius: 4px; padding: 2px 6px;'
-
-                st.table(df_estoque)
+                st.markdown("#### Conferência do almoxarifado")
+                st.dataframe(pd.DataFrame(solicitacao["estoque"]), hide_index=True, width="stretch")
                 if solicitacao.get("observacao_almoxarifado"):
                     st.info(f"**Obs. Almoxarifado:** {solicitacao['observacao_almoxarifado']}")
             if solicitacao.get("dados_compra"):
                 dados = solicitacao["dados_compra"]
                 st.markdown("#### Dados registrados para compras")
-                st.write(f"**Fornecedor sugerido:** {dados.get('fornecedor', 'Não informado')}")
+                st.write(f"**Status da compra:** {dados.get('status_compra', 'Não informado')}")
+                st.write(f"**Fornecedor:** {dados.get('fornecedor', 'Não informado')}")
                 st.write(f"**Previsão de entrega:** {dados.get('previsao', 'Não informada')}")
+                st.write(f"**Responsável:** {dados.get('responsavel', 'Não informado')}")
                 if dados.get("observacao"):
                     st.write(f"**Observação:** {dados['observacao']}")
-
+            renderizar_dados_logistica(solicitacao)
+            renderizar_historico_status(solicitacao)
         st.markdown("")
 
 
 def pagina_acompanhar_status() -> None:
-    """Permite a consulta de solicitações por protocolo ou por empresa em formato de grade."""
+    """Permite que o solicitante acompanhe volumes, legenda e detalhes do fluxo."""
     st.subheader("Acompanhar status")
-    st.write("Consulte a evolução das suas solicitações abaixo.")
-
+    st.write("Consulte a evolução das suas solicitações e a distribuição dos atendimentos em andamento.")
+    solicitacoes = db.carregar_todas()
+    renderizar_resumo_andamento(solicitacoes)
+    st.markdown("---")
     opcao_busca = st.radio(
         "Método de busca",
         ["Todas as solicitações", "Por protocolo", "Por empresa"],
-        horizontal=True
+        horizontal=True,
     )
-
-    # Recarregar do banco para garantir dados atualizados
-    solicitacoes = db.carregar_todas()
-
     if opcao_busca == "Todas as solicitações":
         renderizar_grade_acompanhamento(solicitacoes)
-
     elif opcao_busca == "Por protocolo":
-        protocolo_padrao = st.session_state.ultimo_protocolo
-        protocolo = st.text_input("Protocolo da solicitação", value=protocolo_padrao, placeholder="Ex.: GRM-20260720-0001")
-        consultar = st.button("Consultar status", type="primary")
-
-        if consultar:
+        protocolo = st.text_input(
+            "Protocolo da solicitação",
+            value=st.session_state.ultimo_protocolo,
+            placeholder="Ex.: GRM-20260720-0001",
+        )
+        if st.button("Consultar status", type="primary"):
             solicitacao = localizar_solicitacao(protocolo.strip().upper())
             if not solicitacao:
                 st.warning("Nenhuma solicitação foi encontrada com esse protocolo.")
                 return
             renderizar_grade_acompanhamento([solicitacao])
-
     else:
         empresa_selecionada = st.selectbox("Selecione a empresa", EMPRESAS[1:])
-        filtrar = st.button("Filtrar solicitações", type="primary")
-
-        if filtrar:
-            solicitacoes_filtradas = [s for s in solicitacoes if s['empresa'] == empresa_selecionada]
-            if not solicitacoes_filtradas:
+        if st.button("Filtrar solicitações", type="primary"):
+            filtradas = [item for item in solicitacoes if item["empresa"] == empresa_selecionada]
+            if not filtradas:
                 st.warning(f"Nenhuma solicitação encontrada para {empresa_selecionada}.")
                 return
-            renderizar_grade_acompanhamento(solicitacoes_filtradas)
+            renderizar_grade_acompanhamento(filtradas)
+
 
 
 def exibir_detalhes_solicitacao(solicitacao: dict) -> None:
@@ -660,7 +773,12 @@ def pagina_atendimento() -> None:
         solicitacao["destino"] = destino
         solicitacao["triado_por"] = st.session_state.usuario_autenticado
         solicitacao["observacao_triagem"] = justificativa.strip()
-        atualizar_status(solicitacao, novo_status)
+        atualizar_status(
+            solicitacao,
+            novo_status,
+            st.session_state.usuario_autenticado,
+            justificativa.strip(),
+        )
         st.success(f"{solicitacao['protocolo']} encaminhada para {destino.lower()}.")
 
         itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
@@ -678,273 +796,236 @@ def pagina_atendimento() -> None:
         st.rerun()
 
 
-def pagina_almoxarifado() -> None:
-    """Painel do almoxarifado com grade de requisições, conferência via checkboxes e encaminhamento automático para compras."""
-
-    # Recarregar solicitações do banco
-    st.session_state.solicitacoes = db.carregar_todas()
-    solicitacoes_pendentes = [
-        item for item in st.session_state.solicitacoes
-        if item["status"] in ("Em análise no almoxarifado", "Aguardando triagem")
-    ]
-
-    # --- RESUMO DE PENDÊNCIAS POR EMPRESA ---
-    st.markdown("### 📊 Resumo de solicitações pendentes")
-    if not solicitacoes_pendentes:
-        st.info("Não há solicitações em análise no almoxarifado no momento.")
-    else:
-        contagem_por_empresa: dict[str, int] = {}
-        for s in solicitacoes_pendentes:
-            empresa = s["empresa"]
-            contagem_por_empresa[empresa] = contagem_por_empresa.get(empresa, 0) + 1
-
-        st.caption(f"Total de solicitações pendentes: **{len(solicitacoes_pendentes)}** em **{len(contagem_por_empresa)}** empresa(s)")
-
-        cols = st.columns(min(len(contagem_por_empresa), 3))
-        for idx, (empresa, qtd) in enumerate(sorted(contagem_por_empresa.items())):
-            col = cols[idx % len(cols)]
-            with col:
-                st.markdown(
-                    f"""
-                    <div class="empresa-card">
-                        <div class="empresa-nome">{escape(empresa)}</div>
-                        <div class="empresa-qtd">{qtd}</div>
-                        <div class="empresa-label">solicitação(ões) pendente(s)</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
-
-    st.markdown("---")
-
-    # --- PAINEL DE ATENDIMENTO COM GRADE ---
-    st.markdown("### 🔍 Verificar e atender solicitações")
-
-    if not solicitacoes_pendentes:
-        return
-
-    # Modo de visualização
-    modo_visualizacao = st.radio(
-        "Modo de visualização",
-        ["Todas as solicitações", "Por empresa"],
-        horizontal=True,
-        key="modo_viz_almox",
+def _renderizar_cartao_operacional(solicitacao: dict[str, Any]) -> None:
+    cor, _ = STATUS_META.get(solicitacao["status"], ("#475569", ""))
+    itens_resumo = ", ".join(f"{item['Produto']} (x{item['Quantidade']})" for item in solicitacao["itens"][:3])
+    if len(solicitacao["itens"]) > 3:
+        itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
+    st.markdown(
+        f'<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:.8rem 1rem;margin-bottom:.5rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;"><div>'
+        f'<span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;">{escape(solicitacao["protocolo"])}</span>'
+        f'<div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(solicitacao["empresa"])}</div>'
+        f'<span style="font-size:.78rem;color:#64748B;">Solicitante: {escape(solicitacao["solicitante"])} · {escape(itens_resumo)}</span></div>'
+        f'<span class="status-chip" style="background:{cor};">{escape(solicitacao["status"])}</span></div></div>',
+        unsafe_allow_html=True,
     )
 
-    if modo_visualizacao == "Por empresa":
-        empresas_com_pendencia = sorted(set(s["empresa"] for s in solicitacoes_pendentes))
-        empresa_filtro = st.selectbox(
-            "Selecione a empresa para ver as solicitações",
-            empresas_com_pendencia,
-            key="empresa_filtro_almox",
+
+def _combinar_data_hora(data_evento: date, hora_evento) -> str:
+    return datetime.combine(data_evento, hora_evento).isoformat()
+
+
+def pagina_almoxarifado() -> None:
+    """Orquestra conferência, recebimento físico e envio ao solicitante."""
+    st.subheader("Painel do almoxarifado")
+    st.write("Conferir estoque, registrar a chegada das compras e formalizar o envio ao solicitante.")
+    solicitacoes = db.carregar_todas()
+    st.session_state.solicitacoes = solicitacoes
+    em_analise = [item for item in solicitacoes if item["status"] in {"Em análise no almoxarifado", "Aguardando triagem"}]
+    aguardando_recebimento = [item for item in solicitacoes if item["status"] in STATUS_RECEBIMENTO]
+    aguardando_envio = [item for item in solicitacoes if item["status"] in STATUS_ENVIO]
+
+    resumo = [
+        ("Conferir estoque", len(em_analise), "solicitações em análise", "#2563EB"),
+        ("Receber compras", len(aguardando_recebimento), "compras aguardando chegada", "#EA580C"),
+        ("Enviar materiais", len(aguardando_envio), "prontos para o solicitante", "#0891B2"),
+    ]
+    colunas_resumo = st.columns(3)
+    for coluna, (rotulo, quantidade, detalhe, cor) in zip(colunas_resumo, resumo):
+        coluna.markdown(
+            f'<div class="legend-card" style="border-top:4px solid {cor}"><div class="legend-value">{quantidade}</div>'
+            f'<div class="legend-label">{rotulo}</div><div class="legend-detail">{detalhe}</div></div>',
+            unsafe_allow_html=True,
         )
-        solicitacoes_filtradas = [s for s in solicitacoes_pendentes if s["empresa"] == empresa_filtro]
+
+    st.markdown("---")
+    st.markdown("### 1. Conferir estoque")
+    if not em_analise:
+        st.info("Não há solicitações aguardando conferência de estoque.")
     else:
-        solicitacoes_filtradas = solicitacoes_pendentes
-
-    if not solicitacoes_filtradas:
-        st.info("Nenhuma solicitação encontrada para o filtro selecionado.")
-        return
-
-    st.caption(f"**{len(solicitacoes_filtradas)}** solicitação(ões) para atender")
-
-    # --- GRADE DE SOLICITAÇÕES COM EXPANDER ---
-    for solicitacao in solicitacoes_filtradas:
-        # Card compacto com resumo
-        itens_resumo = ", ".join(
-            [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
-        )
-        if len(solicitacao["itens"]) > 3:
-            itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
-
-        card_html = f"""
-        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid #F59E0B;border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
-                <div>
-                    <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
-                    <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(solicitacao['empresa'])}</div>
-                    <span style="font-size:.78rem;color:#64748B;">Solicitante: {escape(solicitacao['solicitante'])}</span>
-                    <span style="font-size:.78rem;color:#64748B;margin-left:.8rem;">{itens_resumo}</span>
-                </div>
-                <span class="status-chip" style="background:#F59E0B;">Em análise</span>
-            </div>
-        </div>
-        """
-        st.markdown(card_html, unsafe_allow_html=True)
-
-        # Expander para verificar estoque com checkboxes
-        with st.expander("📋 Ver detalhes e conferir itens", expanded=False):
-            if solicitacao.get("observacao_triagem"):
-                st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
-
-            st.markdown("#### 📋 Conferência de Itens")
-            
-            # Cabeçalho da grade
-            c1, c2, c3, c4 = st.columns([0.6, 2, 1, 1])
-            c1.markdown("**Disponível**")
-            c2.markdown("**Produto**")
-            c3.markdown("**Qtd Solicitada**")
-            c4.markdown("**Qtd Disponível**")
-            st.markdown("---")
-            
-            itens_conferidos = []
-            for idx, item in enumerate(solicitacao["itens"]):
-                produto = item["Produto"]
-                qtd_solicitada = item["Quantidade"]
-                
-                col1, col2, col3, col4 = st.columns([0.6, 2, 1, 1])
-                
-                with col1:
-                    # Checkbox desmarcado por padrão
-                    tem_produto = st.checkbox(
+        for solicitacao in em_analise:
+            _renderizar_cartao_operacional(solicitacao)
+            with st.expander("Conferir itens e definir encaminhamento", expanded=False):
+                if solicitacao.get("observacao_triagem"):
+                    st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
+                itens_conferidos = []
+                cabecalho = st.columns([0.7, 2.2, 1, 1])
+                cabecalho[0].markdown("**Disponível**")
+                cabecalho[1].markdown("**Produto**")
+                cabecalho[2].markdown("**Qtd. solicitada**")
+                cabecalho[3].markdown("**Qtd. disponível**")
+                for indice, item in enumerate(solicitacao["itens"]):
+                    produto = item["Produto"]
+                    quantidade_solicitada = int(item["Quantidade"])
+                    linha = st.columns([0.7, 2.2, 1, 1])
+                    disponivel = linha[0].checkbox(
                         "Disponível",
-                        value=False,
-                        key=f"check_{solicitacao['protocolo']}_{idx}",
-                        label_visibility="collapsed"
+                        key=f"estoque_disponivel_{solicitacao['protocolo']}_{indice}",
+                        label_visibility="collapsed",
                     )
-                
-                with col2:
-                    st.markdown(f"**{produto}**")
-                
-                with col3:
-                    st.markdown(f"{qtd_solicitada}")
-                
-                with col4:
-                    # Inicializar valor no session_state para garantir que a edição persista
-                    qtd_key = f"qtd_{solicitacao['protocolo']}_{idx}"
-                    if qtd_key not in st.session_state:
-                        st.session_state[qtd_key] = int(qtd_solicitada) if tem_produto else 0
-                    
-                    # Habilita edição de quantidade apenas se o checkbox estiver marcado
-                    qtd_disponivel = st.number_input(
-                        "Qtd Disp",
+                    linha[1].markdown(f"**{escape(produto)}**")
+                    linha[2].write(quantidade_solicitada)
+                    quantidade_disponivel = linha[3].number_input(
+                        "Quantidade disponível",
                         min_value=0,
-                        max_value=int(qtd_solicitada),
-                        value=st.session_state[qtd_key] if tem_produto else 0,
-                        disabled=not tem_produto,
-                        key=qtd_key,
-                        label_visibility="collapsed"
+                        max_value=quantidade_solicitada,
+                        value=quantidade_solicitada if disponivel else 0,
+                        disabled=not disponivel,
+                        key=f"estoque_quantidade_{solicitacao['protocolo']}_{indice}",
+                        label_visibility="collapsed",
                     )
-                
-                itens_conferidos.append({
-                    "Produto": produto,
-                    "Qtd. solicitada": qtd_solicitada,
-                    "Qtd. disponível": qtd_disponivel,
-                    "Situação": "Disponível" if (tem_produto and qtd_disponivel >= qtd_solicitada) else ("Parcial" if tem_produto else "Indisponível")
-                })
-            
-            st.markdown("---")
-            observacao = st.text_area(
-                "Observação do almoxarifado (opcional)",
-                key=f"obs_estoque_{solicitacao['protocolo']}",
-                placeholder="Informe detalhes sobre a disponibilidade ou prazo de reposição.",
-            )
+                    situacao = "Disponível" if disponivel and quantidade_disponivel >= quantidade_solicitada else ("Parcial" if disponivel else "Indisponível")
+                    itens_conferidos.append(
+                        {
+                            "Produto": produto,
+                            "Qtd. solicitada": quantidade_solicitada,
+                            "Qtd. disponível": quantidade_disponivel,
+                            "Situação": situacao,
+                        }
+                    )
+                observacao = st.text_area(
+                    "Observação do almoxarifado",
+                    key=f"observacao_estoque_{solicitacao['protocolo']}",
+                    placeholder="Informe detalhes sobre disponibilidade, separação ou reposição.",
+                )
+                if st.button("Confirmar conferência", type="primary", width="stretch", key=f"confirmar_estoque_{solicitacao['protocolo']}"):
+                    tem_falta = any(item["Qtd. disponível"] < item["Qtd. solicitada"] for item in itens_conferidos)
+                    solicitacao["estoque"] = itens_conferidos
+                    solicitacao["observacao_almoxarifado"] = observacao.strip()
+                    if tem_falta:
+                        solicitacao["destino"] = "Compras"
+                        atualizar_status(
+                            solicitacao,
+                            "Em processo de compra",
+                            st.session_state.usuario_autenticado,
+                            observacao or "Item indisponível ou parcial; encaminhado para compras.",
+                        )
+                        st.success(f"{solicitacao['protocolo']} foi encaminhada para Compras.")
+                    else:
+                        solicitacao["destino"] = "Almoxarifado"
+                        atualizar_status(
+                            solicitacao,
+                            "Aguardando envio ao solicitante",
+                            st.session_state.usuario_autenticado,
+                            observacao or "Todos os itens estão disponíveis para envio.",
+                        )
+                        st.success(f"{solicitacao['protocolo']} está pronta para envio ao solicitante.")
+                    st.rerun()
 
-            # Botão de ação
-            col_confirmar, col_pendente = st.columns([1, 1])
-            
-            if col_confirmar.button("✅ Confirmar conferência", type="primary", use_container_width=True, key=f"confirmar_estoque_{solicitacao['protocolo']}"):
-                # Verificar se algum item é indisponível ou parcial
-                tem_falta = any(it["Qtd. disponível"] < it["Qtd. solicitada"] for it in itens_conferidos)
-                
-                # Salvar dados de conferência
-                solicitacao["estoque"] = itens_conferidos
-                solicitacao["observacao_almoxarifado"] = observacao.strip()
-                
-                itens_html = "<ul>" + "".join(
-                    [
-                        f"<li>{it['Produto']} - Solicitado: {it['Qtd. solicitada']} - Disponível: {it['Qtd. disponível']} ({it['Situação']})</li>"
-                        for it in itens_conferidos
-                    ]
-                ) + "</ul>"
+    st.markdown("---")
+    st.markdown("### 2. Receber compras")
+    if not aguardando_recebimento:
+        st.info("Não há compras aguardando recebimento físico no almoxarifado.")
+    else:
+        for solicitacao in aguardando_recebimento:
+            _renderizar_cartao_operacional(solicitacao)
+            with st.expander("Registrar recebimento", expanded=False):
+                dados_compra = solicitacao.get("dados_compra") or {}
+                st.write(f"**Fornecedor:** {dados_compra.get('fornecedor', 'Não informado')}")
+                st.write(f"**Previsão registrada:** {dados_compra.get('previsao', 'Não informada')}")
+                with st.form(f"recebimento_{solicitacao['protocolo']}"):
+                    recebido_por = st.text_input("Recebido por", value="almoxarifado")
+                    col_data, col_hora = st.columns(2)
+                    data_recebimento = col_data.date_input("Data de recebimento", value=date.today())
+                    hora_recebimento = col_hora.time_input("Hora de recebimento", value=datetime.now().time().replace(second=0, microsecond=0))
+                    documento = st.text_input("Documento de referência", placeholder="Ex.: NF, romaneio ou pedido")
+                    observacao = st.text_area("Observação do recebimento", placeholder="Registre a conferência física ou alguma divergência.")
+                    registrar = st.form_submit_button("Confirmar recebimento", type="primary", width="stretch")
+                if registrar:
+                    if not recebido_por.strip():
+                        st.error("Informe quem recebeu o material.")
+                    else:
+                        logistica = solicitacao.setdefault("dados_logistica", {})
+                        logistica["recebimento"] = {
+                            "recebido_por": recebido_por.strip(),
+                            "data_hora": _combinar_data_hora(data_recebimento, hora_recebimento),
+                            "documento": documento.strip() or "Não informado",
+                            "observacao": observacao.strip(),
+                        }
+                        solicitacao["destino"] = "Almoxarifado"
+                        atualizar_status(
+                            solicitacao,
+                            "Aguardando envio ao solicitante",
+                            recebido_por.strip(),
+                            observacao or "Compra recebida fisicamente no almoxarifado.",
+                        )
+                        st.success(f"Recebimento de {solicitacao['protocolo']} registrado. Material disponível para envio.")
+                        st.rerun()
 
-                if tem_falta:
-                    # Encaminhar automaticamente para compras
-                    novo_status = "Em processo de compra"
-                    solicitacao["destino"] = "Compras"
-                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
-                    atualizar_status(solicitacao, novo_status)
-                    
-                    corpo_email = f"""
-                    <h3>Retorno do Almoxarifado — Encaminhada para Compras</h3>
-                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-                    <p><strong>Status:</strong> Em processo de compra (itens em falta/parcial)</p>
-                    <h4>Conferência de Itens:</h4>
-                    {itens_html}
-                    """
-                    enviar_email_notificacao(f"Almox → Compras: {solicitacao['protocolo']}", corpo_email)
-                    st.success(f"Itens em falta em {solicitacao['protocolo']}. Encaminhada para Compras.")
-                else:
-                    # Atendimento completo pelo almoxarifado
-                    novo_status = "Atendido pelo almoxarifado"
-                    solicitacao["destino"] = "Almoxarifado"
-                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
-                    atualizar_status(solicitacao, novo_status)
-                    
-                    corpo_email = f"""
-                    <h3>Retorno do Almoxarifado</h3>
-                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-                    <p><strong>Status Final:</strong> Atendido pelo almoxarifado</p>
-                    <h4>Conferência de Itens:</h4>
-                    {itens_html}
-                    """
-                    enviar_email_notificacao(f"Retorno Almoxarifado: {solicitacao['protocolo']}", corpo_email)
-                    st.balloons()
-                    st.success(f"Solicitação {solicitacao['protocolo']} atendida totalmente.")
-                
-                st.rerun()
+    st.markdown("---")
+    st.markdown("### 3. Enviar materiais ao solicitante")
+    if not aguardando_envio:
+        st.info("Não há materiais aguardando envio ao solicitante.")
+    else:
+        for solicitacao in aguardando_envio:
+            _renderizar_cartao_operacional(solicitacao)
+            with st.expander("Registrar envio ao solicitante", expanded=False):
+                with st.form(f"envio_{solicitacao['protocolo']}"):
+                    enviado_por = st.text_input("Produto enviado por", value="almoxarifado")
+                    destinatario = st.text_input("Destinatário", value=solicitacao["solicitante"])
+                    col_data, col_hora = st.columns(2)
+                    data_envio = col_data.date_input("Data de envio", value=date.today())
+                    hora_envio = col_hora.time_input("Hora de envio", value=datetime.now().time().replace(second=0, microsecond=0))
+                    modalidade = st.selectbox("Modalidade de entrega", ["Entrega interna", "Retirada pelo solicitante", "Transportadora", "Outro"])
+                    observacao = st.text_area("Observação do envio", placeholder="Registre local de entrega, comprovante ou outra informação útil.")
+                    registrar = st.form_submit_button("Confirmar envio ao solicitante", type="primary", width="stretch")
+                if registrar:
+                    if not enviado_por.strip() or not destinatario.strip():
+                        st.error("Informe quem enviou e quem recebeu o material.")
+                    else:
+                        logistica = solicitacao.setdefault("dados_logistica", {})
+                        logistica["envio"] = {
+                            "enviado_por": enviado_por.strip(),
+                            "destinatario": destinatario.strip(),
+                            "data_hora": _combinar_data_hora(data_envio, hora_envio),
+                            "modalidade": modalidade,
+                            "observacao": observacao.strip(),
+                        }
+                        solicitacao["destino"] = destinatario.strip()
+                        atualizar_status(
+                            solicitacao,
+                            "Produto enviado ao solicitante",
+                            enviado_por.strip(),
+                            observacao or f"Material enviado para {destinatario.strip()}.",
+                        )
+                        st.success(f"Envio de {solicitacao['protocolo']} registrado com sucesso.")
+                        st.rerun()
 
-            if col_pendente.button("⏸️ Deixar pendente", use_container_width=True, key=f"pendente_{solicitacao['protocolo']}"):
-                st.info(f"{solicitacao['protocolo']} permanecerá em análise.")
 
 
 def pagina_compras() -> None:
-    """Registra dados de compra: status (Comprado ou Em processo de autorização)."""
+    """Registra o andamento da compra e devolve materiais comprados ao almoxarifado."""
     st.subheader("Painel de compras")
-    st.write("Registre o status da compra dos itens solicitados.")
-
-    # Recarregar solicitações do banco
-    st.session_state.solicitacoes = db.carregar_todas()
-    solicitacoes = [item for item in st.session_state.solicitacoes if item["status"] == "Em processo de compra"]
+    st.write("Registre a autorização ou a conclusão da compra para encaminhar o recebimento ao almoxarifado.")
+    solicitacoes = [item for item in db.carregar_todas() if item["status"] in STATUS_COMPRAS]
     if not solicitacoes:
         st.info("Não há solicitações aguardando tratamento pelo setor de compras no momento.")
         return
-
     opcoes = {
-        f"{item['protocolo']} — {item['empresa']} — prioridade {item['prioridade']}": item["protocolo"]
+        f"{item['protocolo']} — {item['empresa']} — {item['status']}": item["protocolo"]
         for item in solicitacoes
     }
     selecao = st.selectbox("Solicitação encaminhada a compras", list(opcoes), key="selecionar_compras")
     solicitacao = localizar_solicitacao(opcoes[selecao])
     assert solicitacao is not None
-
     st.markdown("#### Itens para compra")
     st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
-    
+    dados_anteriores = solicitacao.get("dados_compra") or {}
+    opcoes_status = ["Em processo de autorização", "Comprado"]
+    indice_status = 1 if dados_anteriores.get("status_compra") == "Comprado" else 0
     with st.form(f"formulario_compras_{solicitacao['protocolo']}"):
         st.markdown("#### Status da compra")
-        status_compra = st.radio(
-            "Qual é o status da compra?",
-            ["Comprado", "Em processo de autorização"],
-            horizontal=True,
-            help="Selecione se a compra já foi realizada ou se ainda está em processo de autorização."
-        )
-        
+        status_compra = st.radio("Qual é o status da compra?", opcoes_status, index=indice_status, horizontal=True)
         esquerda, direita = st.columns(2)
         with esquerda:
-            fornecedor = st.text_input("Fornecedor", placeholder="Ex.: Fornecedor ABC")
+            fornecedor = st.text_input("Fornecedor", value=dados_anteriores.get("fornecedor", ""), placeholder="Ex.: Fornecedor ABC")
             previsao = st.date_input("Previsão de entrega", value=date.today())
         with direita:
-            responsavel = st.text_input("Responsável pela compra", value="compras", placeholder="Ex.: Ana Souza")
-            centro_custo = st.text_input("Centro de custo", placeholder="Ex.: CC-1001")
-        
-        observacao = st.text_area("Observação para compras", placeholder="Inclua condições, urgência ou referências de cotação.")
-        registrar = st.form_submit_button("Registrar dados de compra", type="primary", width="stretch")
-
+            responsavel = st.text_input("Responsável pela compra", value=dados_anteriores.get("responsavel", "compras"), placeholder="Ex.: Ana Souza")
+            centro_custo = st.text_input("Centro de custo", value=dados_anteriores.get("centro_custo", ""), placeholder="Ex.: CC-1001")
+        observacao = st.text_area("Observação para compras", value=dados_anteriores.get("observacao", ""), placeholder="Inclua condições, urgência ou referências de cotação.")
+        registrar = st.form_submit_button("Registrar andamento da compra", type="primary", width="stretch")
     if registrar:
         solicitacao["dados_compra"] = {
             "status_compra": status_compra,
@@ -954,24 +1035,18 @@ def pagina_compras() -> None:
             "centro_custo": centro_custo.strip() or "Não informado",
             "observacao": observacao.strip(),
         }
-        atualizar_status(solicitacao, "Compra solicitada")
-        st.success(f"Dados de compra registrados para {solicitacao['protocolo']}.")
-
-        itens_html = "<ul>" + "".join([f"<li>{item['Produto']} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
-        corpo_email = f"""
-        <h3>Dados de Compra Registrados</h3>
-        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-        <p><strong>Status da Compra:</strong> {status_compra}</p>
-        <p><strong>Fornecedor:</strong> {solicitacao['dados_compra']['fornecedor']}</p>
-        <p><strong>Previsão:</strong> {solicitacao['dados_compra']['previsao']}</p>
-        <p><strong>Responsável:</strong> {solicitacao['dados_compra']['responsavel']}</p>
-        <h4>Itens:</h4>
-        {itens_html}
-        """
-        enviar_email_notificacao(f"Dados de Compra: {solicitacao['protocolo']}", corpo_email)
+        if status_compra == "Comprado":
+            solicitacao["destino"] = "Almoxarifado"
+            proximo_status = "Aguardando recebimento no almoxarifado"
+            mensagem = "Compra registrada. O almoxarifado foi acionado para receber o material."
+        else:
+            solicitacao["destino"] = "Compras"
+            proximo_status = "Em processo de autorização"
+            mensagem = "A compra permanece em processo de autorização."
+        atualizar_status(solicitacao, proximo_status, responsavel.strip() or "compras", observacao)
+        st.success(f"{solicitacao['protocolo']}: {mensagem}")
         st.rerun()
+
 
 
 def main() -> None:
