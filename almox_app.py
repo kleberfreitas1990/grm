@@ -811,7 +811,7 @@ def pagina_atendimento() -> None:
         )
         st.success(f"{solicitacao['protocolo']} encaminhada para {destino.lower()}.")
 
-        itens_html = "<ul>" + "".join([f"<li>{escape(item['Produto'])} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+        itens_html = "<ul>" + "".join([f"<li>{escape(str(_obter_valor_item(item, 'produto')))} - Qtd: {_obter_valor_item(item, 'quantidade', 1)}</li>" for item in solicitacao['itens']]) + "</ul>"
         corpo_email = f"""
         <h3 style="color:#EA580C;">&#128260; Solicitação Encaminhada para {escape(destino)}</h3>
         <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
@@ -828,9 +828,20 @@ def pagina_atendimento() -> None:
         st.rerun()
 
 
+def _obter_valor_item(item: dict[str, Any], chave: str, padrao: Any = "") -> Any:
+    """Extrai valor do item tratando chaves em maiúsculo ou minúsculo (ex: Produto/produto)."""
+    for k in (chave.capitalize(), chave.lower()):
+        if k in item:
+            return item[k]
+    return padrao
+
+
 def _renderizar_cartao_operacional(solicitacao: dict[str, Any]) -> None:
     cor, _ = STATUS_META.get(solicitacao["status"], ("#475569", ""))
-    itens_resumo = ", ".join(f"{item['Produto']} (x{item['Quantidade']})" for item in solicitacao["itens"][:3])
+    itens_resumo = ", ".join(
+        f"{escape(str(_obter_valor_item(item, 'produto')))} (x{_obter_valor_item(item, 'quantidade', 1)})"
+        for item in solicitacao["itens"][:3]
+    )
     if len(solicitacao["itens"]) > 3:
         itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
     st.markdown(
@@ -925,7 +936,7 @@ def pagina_almoxarifado() -> None:
                     tem_falta = any(item["Qtd. disponível"] < item["Qtd. solicitada"] for item in itens_conferidos)
                     solicitacao["estoque"] = itens_conferidos
                     solicitacao["observacao_almoxarifado"] = observacao.strip()
-                    itens_estoque_html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'><tr><th>Produto</th><th>Solicitado</th><th>Disponível</th><th>Situação</th></tr>" + "".join([f"<tr><td>{escape(str(it['Produto']))}</td><td>{it['Qtd. solicitada']}</td><td>{it['Qtd. disponível']}</td><td>{escape(str(it['Situação']))}</td></tr>" for it in itens_conferidos]) + "</table>"
+                    itens_estoque_html = "<table border='1' cellpadding='4' style='border-collapse:collapse;'><tr><th>Produto</th><th>Solicitado</th><th>Disponível</th><th>Situação</th></tr>" + "".join([f"<tr><td>{escape(str(_obter_valor_item(it, 'produto')))}</td><td>{_obter_valor_item(it, 'qtd. solicitada')}</td><td>{_obter_valor_item(it, 'qtd. disponível')}</td><td>{escape(str(_obter_valor_item(it, 'situação')))}</td></tr>" for it in itens_conferidos]) + "</table>"
                     if tem_falta:
                         solicitacao["destino"] = "Compras"
                         atualizar_status(
@@ -1059,7 +1070,7 @@ def pagina_almoxarifado() -> None:
                             observacao or f"Material enviado para {destinatario.strip()}.",
                         )
                         st.success(f"Envio de {solicitacao['protocolo']} registrado com sucesso.")
-                        itens_html_envio = "<ul>" + "".join([f"<li>{escape(item['Produto'])} - Qtd: {item['Quantidade']}</li>" for item in solicitacao['itens']]) + "</ul>"
+                        itens_html_envio = "<ul>" + "".join([f"<li>{escape(str(_obter_valor_item(item, 'produto')))} - Qtd: {_obter_valor_item(item, 'quantidade', 1)}</li>" for item in solicitacao['itens']]) + "</ul>"
                         corpo_envio = f"""
                         <h3 style="color:#16A34A;">&#9989; Material Enviado ao Solicitante</h3>
                         <p><strong>Protocolo:</strong> {escape(solicitacao['protocolo'])}</p>
@@ -1129,7 +1140,7 @@ def pagina_compras() -> None:
             mensagem = "A compra permanece em processo de autorização."
         atualizar_status(solicitacao, proximo_status, responsavel.strip() or "compras", observacao)
         st.success(f"{solicitacao['protocolo']}: {mensagem}")
-        itens_html_compra = "<ul>" + "".join([f"<li>{escape(str(item.get('Produto', item.get('produto', ''))))}</li>" for item in solicitacao['itens']]) + "</ul>"
+        itens_html_compra = "<ul>" + "".join([f"<li>{escape(str(_obter_valor_item(item, 'produto')))} - Qtd: {_obter_valor_item(item, 'quantidade', 1)}</li>" for item in solicitacao['itens']]) + "</ul>"
         cor_compra = "#16A34A" if status_compra == "Comprado" else "#EA580C"
         icone_compra = "&#9989;" if status_compra == "Comprado" else "&#128203;"
         corpo_compra = f"""
