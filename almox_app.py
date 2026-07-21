@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.2.1"
+APP_VERSION = "1.3.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -768,38 +768,58 @@ def pagina_almoxarifado() -> None:
             if solicitacao.get("observacao_triagem"):
                 st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
 
-            st.markdown("#### Itens solicitados")
+            st.markdown("#### 📋 Conferência de Itens")
             
-            # Inicializar estado de checkboxes se não existir
-            checkbox_key_prefix = f"checkbox_{solicitacao['protocolo']}"
-            if checkbox_key_prefix not in st.session_state:
-                st.session_state[checkbox_key_prefix] = {}
-                for item in solicitacao["itens"]:
-                    st.session_state[checkbox_key_prefix][item["Produto"]] = True
+            # Cabeçalho da grade
+            c1, c2, c3, c4 = st.columns([0.6, 2, 1, 1])
+            c1.markdown("**Disponível**")
+            c2.markdown("**Produto**")
+            c3.markdown("**Qtd Solicitada**")
+            c4.markdown("**Qtd Disponível**")
+            st.markdown("---")
             
-            # Exibir checkboxes para cada item
-            itens_conferidos = {}
-            for item in solicitacao["itens"]:
+            itens_conferidos = []
+            for idx, item in enumerate(solicitacao["itens"]):
                 produto = item["Produto"]
-                qtd = item["Quantidade"]
+                qtd_solicitada = item["Quantidade"]
                 
-                col1, col2, col3 = st.columns([0.5, 2, 1])
+                col1, col2, col3, col4 = st.columns([0.6, 2, 1, 1])
+                
                 with col1:
+                    # Checkbox desmarcado por padrão
                     tem_produto = st.checkbox(
-                        "✓",
-                        value=st.session_state[checkbox_key_prefix].get(produto, True),
-                        key=f"{checkbox_key_prefix}_{produto}",
+                        "Disponível",
+                        value=False,
+                        key=f"check_{solicitacao['protocolo']}_{idx}",
                         label_visibility="collapsed"
                     )
-                    itens_conferidos[produto] = tem_produto
+                
                 with col2:
-                    st.write(f"**{produto}**")
+                    st.markdown(f"**{produto}**")
+                
                 with col3:
-                    st.write(f"Qtd: {qtd}")
+                    st.markdown(f"{qtd_solicitada}")
+                
+                with col4:
+                    # Habilita edição de quantidade apenas se o checkbox estiver marcado
+                    qtd_disponivel = st.number_input(
+                        "Qtd Disp",
+                        min_value=0,
+                        max_value=int(qtd_solicitada),
+                        value=int(qtd_solicitada) if tem_produto else 0,
+                        disabled=not tem_produto,
+                        key=f"qtd_{solicitacao['protocolo']}_{idx}",
+                        label_visibility="collapsed"
+                    )
+                
+                itens_conferidos.append({
+                    "Produto": produto,
+                    "Qtd. solicitada": qtd_solicitada,
+                    "Qtd. disponível": qtd_disponivel,
+                    "Situação": "Disponível" if (tem_produto and qtd_disponivel >= qtd_solicitada) else ("Parcial" if tem_produto else "Indisponível")
+                })
             
-            # Atualizar estado da sessão
-            st.session_state[checkbox_key_prefix] = itens_conferidos
-            
+            st.markdown("---")
             observacao = st.text_area(
                 "Observação do almoxarifado (opcional)",
                 key=f"obs_estoque_{solicitacao['protocolo']}",
@@ -807,21 +827,36 @@ def pagina_almoxarifado() -> None:
             )
 
             # Botão de ação
-            acao_col1, acao_col2 = st.columns([1, 1])
-            if acao_col1.button("✅ Confirmar conferência", type="primary", width="stretch", key=f"confirmar_estoque_{solicitacao['protocolo']}"):
-                # Verificar se todos os itens foram marcados como disponíveis
-                tem_indisponivel = any(not v for v in itens_conferidos.values())
+            if st.button("✅ Confirmar conferência", type="primary", use_container_width=True, key=f"confirmar_estoque_{solicitacao['protocolo']}"):
+                # Verificar se algum item é indisponível ou parcial
+                tem_falta = any(it["Qtd. disponível"] < it["Qtd. solicitada"] for it in itens_conferidos)
                 
                 # Salvar dados de conferência
-                solicitacao["estoque"] = [
-                    {
-                        "Produto": item["Produto"],
-                        "Qtd. solicitada": item["Quantidade"],
-                        "Qtd. disponível": item["Quantidade"] if itens_conferidos.get(item["Produto"], False) else 0,
-                        "Situação": "Disponível" if itens_conferidos.get(item["Produto"], False) else "Indisponível",
-                    }
-                    for item in solicitacao["itens"]
-                ]
+                solicitacao["estoque"] = itens_conferidos
+                solicitacao["observacao_almoxarifado"] = observacao.strip()
+                
+                itens_html = "<ul>" + "".join(
+                    [
+                        f"<li>{it['Produto']} - Solicitado: {it['Qtd. solicitada']} - Disponível: {it['Qtd. disponível']} ({it['Situação']})</li>"
+                        for it in itens_conferidos
+                    ]
+                ) + "</ul>"
+
+                if tem_falta:
+                    # Encaminhar automaticamente para compras
+                    novo_status = "Em processo de compra"
+                    solicitacao["destino"] = "Compras"
+                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
+                    atualizar_status(solicitacao, novo_status)
+                    st.success(f"Itens em falta em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
+                else:
+                    # Atendimento completo pelo almoxarifado
+                    novo_status = "Atendido pelo almoxarifado"
+                    solicitacao["destino"] = "Almoxarifado"
+                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
+                    atualizar_status(solicitacao, novo_status)
+                    st.balloons()
+                    st.success(f"Solicitação {solicitacao['protocolo']} atendida totalmente pelo almoxarifado.")
                 solicitacao["observacao_almoxarifado"] = observacao.strip()
                 
                 itens_html = "<ul>" + "".join(
