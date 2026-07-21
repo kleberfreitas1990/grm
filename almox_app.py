@@ -1,8 +1,8 @@
 """Aplicação Streamlit para o fluxo de requisições de materiais do GRM.
 
-Versão da aplicação: 1.0.3
-Os dados são persistidos em banco de dados SQLite para garantir que as
-solicitações não se percam ao reiniciar a aplicação.
+Versão da aplicação: 1.1.0
+Os dados são persistidos em TiDB Cloud (com fallback para SQLite local),
+garantindo que as solicitações não se percam ao reiniciar a aplicação.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.0.3"
+APP_VERSION = "1.1.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.

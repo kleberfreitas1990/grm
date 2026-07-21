@@ -6,6 +6,59 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 024 — Versão 1.1.0 — 21 de julho de 2026
+
+### Objetivo
+
+Resolver o problema crítico de perda de dados no Streamlit Cloud migrando o banco de dados para TiDB Cloud persistente, com fallback para SQLite em ambiente de desenvolvimento local.
+
+### Prompt sanitizado
+
+> As solicitações sumiram e isso é um erro grave, criamos o banco de dados pra isso não acontecer.
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Persistência | Migração do SQLite local para TiDB Cloud via `st.connection`, garantindo que os dados sobrevivam a deploys e hibernações. |
+| Fallback | Quando o TiDB não está configurado (desenvolvimento local), a aplicação usa automaticamente SQLite. |
+| Abstração | db.py completamente reescrito com classes `SQLiteEngine` e `TiDBEngine` unificadas por `_DBManager`. |
+| Usuários | Tabela de usuários criada automaticamente no TiDB, com senhas padrão `Grm@2026`. |
+| Dependências | Adicionadas SQLAlchemy, PyMySQL e mysqlclient ao requirements.txt. |
+| Configuração | secrets.toml.example atualizado com template de conexão TiDB. |
+| Versionamento | Atualização da versão da aplicação para `1.1.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `db.py` | Reescrito com suporte dual (TiDB Cloud + SQLite). |
+| `requirements.txt` | Adicionadas dependências SQL. |
+| `.streamlit/secrets.toml.example` | Template de conexão TiDB Cloud. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Nove testes automatizados aprovados sem erros de sintaxe ou execução.
+
+### Ação necessária para o deploy
+
+Para ativar a persistência no Streamlit Cloud:
+
+1. Criar cluster gratuito em https://tidbcloud.com
+2. Copiar dados de conexão (host, porta, usuário, senha, nome do banco)
+3. Ir em "Edit Secrets" no dashboard do Streamlit Cloud
+4. Colar a configuração do TiDB (seguindo o modelo em secrets.toml.example)
+
+Até a configuração do TiDB ser feita, a aplicação continuará usando SQLite local (comportamento anterior).
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.1.0`.
+
+---
+
 ## Iteração 023 — Versão 1.0.3 — 21 de julho de 2026
 
 ### Objetivo

@@ -2,6 +2,22 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.1.0] — 2026-07-21
+
+### Adicionado
+
+- Persistência via TiDB Cloud para que as solicitações não se percam em deploys ou hibernações.
+- Fallback automático para SQLite em ambiente de desenvolvimento local.
+- Classes abstratas `SQLiteEngine` e `TiDBEngine` unificadas por `_DBManager`.
+
+### Alterado
+
+- `db.py` completamente reescrito com suporte dual ao banco de dados.
+- `requirements.txt` com dependências SQL (SQLAlchemy, PyMySQL, mysqlclient).
+- `.streamlit/secrets.toml.example` com template de conexão TiDB Cloud.
+
+[1.1.0]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.1.0
+
 ## [1.0.3] — 2026-07-21
 
 ### Adicionado
