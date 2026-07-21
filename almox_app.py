@@ -1,6 +1,6 @@
 """Aplicação Streamlit para o fluxo de requisições de materiais do GRM.
 
-Versão da aplicação: 1.0.0
+Versão da aplicação: 1.0.1
 Os dados são persistidos em banco de dados SQLite para garantir que as
 solicitações não se percam ao reiniciar a aplicação.
 """
@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -381,18 +381,110 @@ def pagina_nova_solicitacao_simplificada() -> None:
         st.success(f"Sua solicitação foi enviada com sucesso! Anote este código para acompanhar depois: **{protocolo}**")
 
 
+def renderizar_card_solicitacao(solicitacao: dict) -> None:
+    """Renderiza um card compacto para a grade de acompanhamento com expander."""
+    cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
+
+    # Resumo no card
+    empresa_curta = solicitacao["empresa"].split(" - ")[0] if " - " in solicitacao["empresa"] else solicitacao["empresa"][:25]
+    itens_resumo = ", ".join(
+        [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
+    )
+    if len(solicitacao["itens"]) > 3:
+        itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
+
+    card_html = f"""
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.6rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+            <div>
+                <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
+                <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(empresa_curta)}</div>
+                <span style="font-size:.78rem;color:#64748B;">{itens_resumo}</span>
+            </div>
+            <span class="status-chip" style="background:{cor};">{escape(solicitacao['status'])}</span>
+        </div>
+    </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
+
+
+def renderizar_grade_acompanhamento(solicitacoes: list[dict]) -> None:
+    """Renderiza a grade de solicitações com expander para detalhes."""
+    if not solicitacoes:
+        st.info("Nenhuma solicitação encontrada.")
+        return
+
+    st.caption(f"**{len(solicitacoes)}** solicitação(ões) encontrada(s)")
+
+    for solicitacao in solicitacoes:
+        cor, descricao = STATUS_META.get(solicitacao["status"], ("#475569", "Status atualizado."))
+        empresa_curta = solicitacao["empresa"].split(" - ")[0] if " - " in solicitacao["empresa"] else solicitacao["empresa"][:25]
+        itens_resumo = ", ".join(
+            [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
+        )
+        if len(solicitacao["itens"]) > 3:
+            itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
+
+        card_html = f"""
+        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid {cor};border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                <div>
+                    <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
+                    <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(empresa_curta)}</div>
+                    <span style="font-size:.78rem;color:#64748B;">{itens_resumo}</span>
+                </div>
+                <span class="status-chip" style="background:{cor};">{escape(solicitacao['status'])}</span>
+            </div>
+        </div>
+        """
+        st.markdown(card_html, unsafe_allow_html=True)
+
+        with st.expander("Ver detalhes completos", expanded=False):
+            detalhes, itens_coluna = st.columns([1, 1.2])
+            with detalhes:
+                st.markdown("#### Dados da solicitação")
+                st.write(f"**Empresa:** {solicitacao['empresa']}")
+                st.write(f"**Solicitante:** {solicitacao['solicitante']}")
+                st.write(f"**Prioridade:** {solicitacao['prioridade']}")
+                if solicitacao["destino"]:
+                    st.write(f"**Encaminhamento:** {solicitacao['destino']}")
+                st.write(f"**Última atualização:** {solicitacao['atualizado_em'].strftime('%d/%m/%Y às %H:%M')}")
+            with itens_coluna:
+                st.markdown("#### Itens solicitados")
+                st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
+
+            if solicitacao.get("estoque"):
+                st.markdown("#### Retorno do almoxarifado")
+                st.dataframe(pd.DataFrame(solicitacao["estoque"]), hide_index=True, width="stretch")
+            if solicitacao.get("dados_compra"):
+                dados = solicitacao["dados_compra"]
+                st.markdown("#### Dados registrados para compras")
+                st.write(f"**Fornecedor sugerido:** {dados.get('fornecedor', 'Não informado')}")
+                st.write(f"**Previsão de entrega:** {dados.get('previsao', 'Não informada')}")
+                if dados.get("observacao"):
+                    st.write(f"**Observação:** {dados['observacao']}")
+
+        st.markdown("")
+
+
 def pagina_acompanhar_status() -> None:
-    """Permite a consulta de uma solicitação pelo protocolo gerado."""
+    """Permite a consulta de solicitações por protocolo ou por empresa em formato de grade."""
     st.subheader("Acompanhar status")
-    st.write("Consulte a evolução de uma solicitação informando o protocolo gerado no momento do registro.")
+    st.write("Consulte a evolução das suas solicitações abaixo.")
 
     opcao_busca = st.radio(
         "Método de busca",
-        ["Por protocolo", "Por empresa"],
+        ["Todas as solicitações", "Por protocolo", "Por empresa"],
         horizontal=True
     )
 
-    if opcao_busca == "Por protocolo":
+    # Recarregar do banco para garantir dados atualizados
+    solicitacoes = db.carregar_todas()
+
+    if opcao_busca == "Todas as solicitações":
+        renderizar_grade_acompanhamento(solicitacoes)
+
+    elif opcao_busca == "Por protocolo":
         protocolo_padrao = st.session_state.ultimo_protocolo
         protocolo = st.text_input("Protocolo da solicitação", value=protocolo_padrao, placeholder="Ex.: GRM-20260720-0001")
         consultar = st.button("Consultar status", type="primary")
@@ -402,23 +494,18 @@ def pagina_acompanhar_status() -> None:
             if not solicitacao:
                 st.warning("Nenhuma solicitação foi encontrada com esse protocolo.")
                 return
-
-            exibir_detalhes_solicitacao(solicitacao)
+            renderizar_grade_acompanhamento([solicitacao])
 
     else:
         empresa_selecionada = st.selectbox("Selecione a empresa", EMPRESAS[1:])
         filtrar = st.button("Filtrar solicitações", type="primary")
 
         if filtrar:
-            solicitacoes = db.carregar_todas()
-            solicitacoes = [s for s in solicitacoes if s['empresa'] == empresa_selecionada]
-            if not solicitacoes:
+            solicitacoes_filtradas = [s for s in solicitacoes if s['empresa'] == empresa_selecionada]
+            if not solicitacoes_filtradas:
                 st.warning(f"Nenhuma solicitação encontrada para {empresa_selecionada}.")
                 return
-
-            for solicitacao in solicitacoes:
-                exibir_detalhes_solicitacao(solicitacao)
-                st.markdown("---")
+            renderizar_grade_acompanhamento(solicitacoes_filtradas)
 
 
 def exibir_detalhes_solicitacao(solicitacao: dict) -> None:

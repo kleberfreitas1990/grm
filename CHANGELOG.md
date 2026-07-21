@@ -2,6 +2,16 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.0.1] — 2026-07-21
+
+### Adicionado
+
+- Grade visual de solicitações na área "Acompanhar status" com cards mostrando protocolo, empresa, resumo dos itens e chip de status colorido.
+- Expander "Ver detalhes completos" em cada card para exibir dados, itens, retorno do almoxarifado e dados de compra.
+- Nova opção "Todas as solicitações" no método de busca da área de acompanhamento.
+
+[1.0.1]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.0.1
+
 ## [1.0.0] — 2026-07-21
 
 ### Adicionado

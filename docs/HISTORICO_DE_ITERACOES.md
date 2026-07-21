@@ -6,6 +6,44 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 021 — Versão 1.0.1 — 21 de julho de 2026
+
+### Objetivo
+
+Melhorar a área de Acompanhamento de Status do solicitante com uma grade visual de todas as solicitações, mostrando o status de cada uma e permitindo expandir os detalhes completos ao clicar.
+
+### Prompt sanitizado
+
+> Na área de Acompanhar status do solicitante poderia trazer todas as solicitações em uma grade e nela ver o status de cada solicitação e se quiser ver mais informações clicar em cima pra expandir.
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Interface | Substituição da exibição individual de solicitações por uma grade de cards visuais com protocolo, empresa, resumo dos itens e chip de status colorido. |
+| Navegação | Adição de expander "Ver detalhes completos" em cada card, contendo dados da solicitação, itens, retorno do almoxarifado e dados de compra. |
+| Busca | Nova opção "Todas as solicitações" no radio de busca, além das opções existentes "Por protocolo" e "Por empresa". |
+| Funções | Criadas as funções `renderizar_card_solicitacao()` e `renderizar_grade_acompanhamento()`. |
+| Versionamento | Atualização da versão da aplicação para `1.0.1`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `almox_app.py` | Reescrita da função `pagina_acompanhar_status()` e adição de `renderizar_card_solicitacao()` e `renderizar_grade_acompanhamento()`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Seis testes automatizados aprovados sem erros de sintaxe ou execução.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.0.1`.
+
+---
+
 ## Iteração 020 — Versão 1.0.0 — 21 de julho de 2026
 
 ### Objetivo
