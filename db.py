@@ -24,6 +24,7 @@ def _init_engine():
     try:
         import streamlit as st
         if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
+            st.info("Conectando ao banco de dados permanente (TiDB Cloud)...")
             # Tenta injetar o PyMySQL como driver padrão do mysql
             try:
                 import pymysql
@@ -33,10 +34,17 @@ def _init_engine():
                 
             # Força o uso do PyMySQL explicitamente
             conn = st.connection("tidb", type="sql")
+            
+            # Teste rápido de conexão
+            conn.query("SELECT 1", ttl=0)
             return conn, False
     except Exception as e:
-        # Se houver segredos mas a conexão falhar, reportamos o erro no log
-        print(f"Erro ao conectar ao TiDB Cloud: {e}")
+        # Se houver segredos mas a conexão falhar, reportamos o erro
+        import streamlit as st
+        st.error(f"Erro crítico de conexão com o banco de dados: {e}")
+        # Não faz fallback para SQLite se o usuário configurou TiDB, para evitar confusão de dados
+        if "connections" in st.secrets and "tidb" in st.secrets["connections"]:
+             raise e
         pass
 
     # Fallback: SQLite local (para desenvolvimento)

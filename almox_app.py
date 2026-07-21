@@ -676,7 +676,7 @@ def pagina_almoxarifado() -> None:
     st.session_state.solicitacoes = db.carregar_todas()
     solicitacoes_pendentes = [
         item for item in st.session_state.solicitacoes
-        if item["status"] == "Em análise no almoxarifado"
+        if item["status"] in ("Em análise no almoxarifado", "Aguardando triagem")
     ]
 
     # --- RESUMO DE PENDÊNCIAS POR EMPRESA ---
