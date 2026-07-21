@@ -361,7 +361,7 @@ def pagina_nova_solicitacao_simplificada() -> None:
             "prioridade": "Normal",
             "itens": itens,
             "observacao": observacao.strip(),
-            "status": "Aguardando triagem",
+            "status": "Em análise no almoxarifado",
             "criado_em": agora,
             "atualizado_em": agora,
             "destino": "",
@@ -1019,12 +1019,7 @@ def main() -> None:
         renderizar_cabecalho()
 
         if usuario == "compras":
-            aba_atendimento, aba_compras = st.tabs(["Atendimento", "Compras"])
-            with aba_atendimento:
-                pagina_atendimento()
-            with aba_compras:
-                pagina_compras()
-
+            pagina_compras()
         elif usuario == "almoxarifado":
             pagina_almoxarifado()
 
