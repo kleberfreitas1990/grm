@@ -2,6 +2,21 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.2.0] — 2026-07-21
+
+### Adicionado
+
+- No painel do Almoxarifado, grade de solicitações pendentes com checkboxes para conferência individual de cada item.
+- Encaminhamento automático para Compras se algum item não estiver disponível (checkbox desmarcado).
+- No painel de Compras, opção de registrar o status da compra como "Comprado" ou "Em processo de autorização".
+
+### Alterado
+
+- `pagina_almoxarifado()`: Substituída a `st.data_editor` por um fluxo de checkboxes para conferência de itens.
+- `pagina_compras()`: Adicionado campo de `status_compra` com opções de "Comprado" ou "Em processo de autorização".
+
+[1.2.0]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.2.0
+
 ## [1.1.0] — 2026-07-21
 
 ### Adicionado

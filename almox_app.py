@@ -671,7 +671,7 @@ def pagina_atendimento() -> None:
 
 
 def pagina_almoxarifado() -> None:
-    """Painel do almoxarifado com grade de requisições, marcação de estoque e encaminhamento automático para compras."""
+    """Painel do almoxarifado com grade de requisições, conferência via checkboxes e encaminhamento automático para compras."""
 
     # Recarregar solicitações do banco
     st.session_state.solicitacoes = db.carregar_todas()
@@ -764,43 +764,43 @@ def pagina_almoxarifado() -> None:
         """
         st.markdown(card_html, unsafe_allow_html=True)
 
-        # Expander para verificar estoque
-        with st.expander("Verificar disponibilidade de estoque", expanded=False):
+        # Expander para verificar estoque com checkboxes
+        with st.expander("📋 Ver detalhes e conferir itens", expanded=False):
             if solicitacao.get("observacao_triagem"):
                 st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
 
             st.markdown("#### Itens solicitados")
-            st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
-
-            st.markdown("#### Marcar disponibilidade de cada item")
-            st.caption("Informe a quantidade disponível e a situação de cada item.")
-
-            estoque_inicial = pd.DataFrame(
-                [
-                    {
-                        "Produto": item["Produto"],
-                        "Qtd. solicitada": item["Quantidade"],
-                        "Qtd. disponível": item["Quantidade"],
-                        "Situação": "Disponível",
-                    }
-                    for item in solicitacao["itens"]
-                ]
-            )
-            disponibilidade = st.data_editor(
-                estoque_inicial,
-                column_config={
-                    "Produto": st.column_config.TextColumn(disabled=True),
-                    "Qtd. solicitada": st.column_config.NumberColumn(disabled=True),
-                    "Qtd. disponível": st.column_config.NumberColumn(min_value=0, step=1),
-                    "Situação": st.column_config.SelectboxColumn(
-                        "Situação",
-                        options=["Disponível", "Parcial", "Indisponível"],
-                    ),
-                },
-                hide_index=True,
-                width="stretch",
-                key=f"estoque_{solicitacao['protocolo']}",
-            )
+            
+            # Inicializar estado de checkboxes se não existir
+            checkbox_key_prefix = f"checkbox_{solicitacao['protocolo']}"
+            if checkbox_key_prefix not in st.session_state:
+                st.session_state[checkbox_key_prefix] = {}
+                for item in solicitacao["itens"]:
+                    st.session_state[checkbox_key_prefix][item["Produto"]] = True
+            
+            # Exibir checkboxes para cada item
+            itens_conferidos = {}
+            for item in solicitacao["itens"]:
+                produto = item["Produto"]
+                qtd = item["Quantidade"]
+                
+                col1, col2, col3 = st.columns([0.5, 2, 1])
+                with col1:
+                    tem_produto = st.checkbox(
+                        "✓",
+                        value=st.session_state[checkbox_key_prefix].get(produto, True),
+                        key=f"{checkbox_key_prefix}_{produto}",
+                        label_visibility="collapsed"
+                    )
+                    itens_conferidos[produto] = tem_produto
+                with col2:
+                    st.write(f"**{produto}**")
+                with col3:
+                    st.write(f"Qtd: {qtd}")
+            
+            # Atualizar estado da sessão
+            st.session_state[checkbox_key_prefix] = itens_conferidos
+            
             observacao = st.text_area(
                 "Observação do almoxarifado (opcional)",
                 key=f"obs_estoque_{solicitacao['protocolo']}",
@@ -809,20 +809,26 @@ def pagina_almoxarifado() -> None:
 
             # Botão de ação
             acao_col1, acao_col2 = st.columns([1, 1])
-            if acao_col1.button("✅ Confirmar estoque", type="primary", width="stretch", key=f"confirmar_estoque_{solicitacao['protocolo']}"):
-                solicitacao["estoque"] = disponibilidade.to_dict(orient="records")
+            if acao_col1.button("✅ Confirmar conferência", type="primary", width="stretch", key=f"confirmar_estoque_{solicitacao['protocolo']}"):
+                # Verificar se todos os itens foram marcados como disponíveis
+                tem_indisponivel = any(not v for v in itens_conferidos.values())
+                
+                # Salvar dados de conferência
+                solicitacao["estoque"] = [
+                    {
+                        "Produto": item["Produto"],
+                        "Qtd. solicitada": item["Quantidade"],
+                        "Qtd. disponível": item["Quantidade"] if itens_conferidos.get(item["Produto"], False) else 0,
+                        "Situação": "Disponível" if itens_conferidos.get(item["Produto"], False) else "Indisponível",
+                    }
+                    for item in solicitacao["itens"]
+                ]
                 solicitacao["observacao_almoxarifado"] = observacao.strip()
-
-                # Verificar se algum item está indisponível ou parcial
-                tem_indisponivel = any(
-                    item["Situação"] in ("Indisponível", "Parcial")
-                    for item in disponibilidade.to_dict(orient="records")
-                )
-
+                
                 itens_html = "<ul>" + "".join(
                     [
-                        f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>"
-                        for item in disponibilidade.to_dict(orient="records")
+                        f"<li>{item['Produto']} - Qtd: {item['Qtd. solicitada']} - {item['Situação']}</li>"
+                        for item in solicitacao["estoque"]
                     ]
                 ) + "</ul>"
 
@@ -832,7 +838,7 @@ def pagina_almoxarifado() -> None:
                     solicitacao["destino"] = "Compras"
                     solicitacao["triado_por"] = st.session_state.usuario_autenticado
                     atualizar_status(solicitacao, novo_status)
-                    st.success(f"Stock parcial/indisponível em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
+                    st.success(f"Itens indisponíveis em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
 
                     corpo_email = f"""
                     <h3>Retorno do Almoxarifado — Encaminhada para Compras</h3>
@@ -847,7 +853,7 @@ def pagina_almoxarifado() -> None:
                 else:
                     # Todos disponíveis, atender pelo almoxarifado
                     atualizar_status(solicitacao, "Atendido pelo almoxarifado")
-                    st.success(f"Estoque confirmado para {solicitacao['protocolo']}.")
+                    st.success(f"Todos os itens confirmados para {solicitacao['protocolo']}.")
 
                     corpo_email = f"""
                     <h3>Retorno do Almoxarifado</h3>
@@ -867,9 +873,9 @@ def pagina_almoxarifado() -> None:
 
 
 def pagina_compras() -> None:
-    """Registra os dados iniciais de compra para solicitações encaminhadas ao setor."""
+    """Registra dados de compra: status (Comprado ou Em processo de autorização)."""
     st.subheader("Painel de compras")
-    st.write("Registre os dados que apoiarão a cotação ou a aquisição dos itens solicitados.")
+    st.write("Registre o status da compra dos itens solicitados.")
 
     # Recarregar solicitações do banco
     st.session_state.solicitacoes = db.carregar_todas()
@@ -888,19 +894,30 @@ def pagina_compras() -> None:
 
     st.markdown("#### Itens para compra")
     st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
+    
     with st.form(f"formulario_compras_{solicitacao['protocolo']}"):
+        st.markdown("#### Status da compra")
+        status_compra = st.radio(
+            "Qual é o status da compra?",
+            ["Comprado", "Em processo de autorização"],
+            horizontal=True,
+            help="Selecione se a compra já foi realizada ou se ainda está em processo de autorização."
+        )
+        
         esquerda, direita = st.columns(2)
         with esquerda:
-            fornecedor = st.text_input("Fornecedor sugerido", placeholder="Ex.: Fornecedor ABC")
+            fornecedor = st.text_input("Fornecedor", placeholder="Ex.: Fornecedor ABC")
             previsao = st.date_input("Previsão de entrega", value=date.today())
         with direita:
-            responsavel = st.text_input("Responsável pela compra", value="suprimentos", placeholder="Ex.: Ana Souza")
+            responsavel = st.text_input("Responsável pela compra", value="compras", placeholder="Ex.: Ana Souza")
             centro_custo = st.text_input("Centro de custo", placeholder="Ex.: CC-1001")
+        
         observacao = st.text_area("Observação para compras", placeholder="Inclua condições, urgência ou referências de cotação.")
         registrar = st.form_submit_button("Registrar dados de compra", type="primary", width="stretch")
 
     if registrar:
         solicitacao["dados_compra"] = {
+            "status_compra": status_compra,
             "fornecedor": fornecedor.strip() or "Não informado",
             "previsao": previsao.strftime("%d/%m/%Y"),
             "responsavel": responsavel.strip() or "Não informado",
@@ -916,6 +933,7 @@ def pagina_compras() -> None:
         <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
         <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
         <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+        <p><strong>Status da Compra:</strong> {status_compra}</p>
         <p><strong>Fornecedor:</strong> {solicitacao['dados_compra']['fornecedor']}</p>
         <p><strong>Previsão:</strong> {solicitacao['dados_compra']['previsao']}</p>
         <p><strong>Responsável:</strong> {solicitacao['dados_compra']['responsavel']}</p>

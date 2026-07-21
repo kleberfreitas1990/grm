@@ -6,6 +6,45 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 025 — Versão 1.2.0 — 21 de julho de 2026
+
+### Objetivo
+
+Ajustar o painel do Almoxarifado para conferência de itens via checkbox e o painel de Compras para status de compra/autorização, garantindo persistência no TiDB Cloud.
+
+### Prompt sanitizado
+
+> na tela do almoxarifado eles precisam ter visão de consultar todas as solicitações pendentes e carregar em grade, com nome da empresa caso queira ver os itens clicar pra em detalhes pra expandir ai la ve | produto | QTD e ele fará uma ação de check box pra informar se tem o produto caso nao tenha o fluxo segue pro painel do compras la eles informa se comprou ou se esta em processo de autorização.
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Almoxarifado | Implementação de grade de solicitações pendentes com checkboxes para conferência individual de cada item. |
+| Almoxarifado | Se algum item não for marcado como disponível, a solicitação é encaminhada automaticamente para Compras. |
+| Almoxarifado | Se todos os itens forem marcados como disponíveis, a solicitação é marcada como "Atendido pelo almoxarifado". |
+| Compras | Adição de opções de status de compra ("Comprado" ou "Em processo de autorização") no painel de Compras. |
+| Compras | Mantidos os campos existentes (fornecedor, previsão, responsável, centro de custo) e adicionado o novo status. |
+| Versionamento | Atualização da versão da aplicação para `1.2.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `almox_app.py` | Reescrita das funções `pagina_almoxarifado()` e `pagina_compras()` para implementar as novas funcionalidades. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Validação manual da interface do Almoxarifado com a nova grade e checkboxes, e do painel de Compras com as novas opções de status. Testes de encaminhamento automático para Compras e de marcação como "Atendido pelo almoxarifado" foram verificados.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.2.0`.
+
+---
+
 ## Iteração 024 — Versão 1.1.0 — 21 de julho de 2026
 
 ### Objetivo
