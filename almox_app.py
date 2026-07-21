@@ -1,6 +1,6 @@
 """Aplicação Streamlit para o fluxo de requisições de materiais do GRM.
 
-Versão da aplicação: 1.0.2
+Versão da aplicação: 1.0.3
 Os dados são persistidos em banco de dados SQLite para garantir que as
 solicitações não se percam ao reiniciar a aplicação.
 """
@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -671,7 +671,7 @@ def pagina_atendimento() -> None:
 
 
 def pagina_almoxarifado() -> None:
-    """Painel do almoxarifado com resumo de pendências e verificação de estoque."""
+    """Painel do almoxarifado com grade de requisições, marcação de estoque e encaminhamento automático para compras."""
 
     # Recarregar solicitações do banco
     st.session_state.solicitacoes = db.carregar_todas()
@@ -685,7 +685,6 @@ def pagina_almoxarifado() -> None:
     if not solicitacoes_pendentes:
         st.info("Não há solicitações em análise no almoxarifado no momento.")
     else:
-        # Agrupar por empresa
         contagem_por_empresa: dict[str, int] = {}
         for s in solicitacoes_pendentes:
             empresa = s["empresa"]
@@ -693,7 +692,6 @@ def pagina_almoxarifado() -> None:
 
         st.caption(f"Total de solicitações pendentes: **{len(solicitacoes_pendentes)}** em **{len(contagem_por_empresa)}** empresa(s)")
 
-        # Exibir cards por empresa
         cols = st.columns(min(len(contagem_por_empresa), 3))
         for idx, (empresa, qtd) in enumerate(sorted(contagem_por_empresa.items())):
             col = cols[idx % len(cols)]
@@ -711,8 +709,8 @@ def pagina_almoxarifado() -> None:
 
     st.markdown("---")
 
-    # --- PAINEL DE ATENDIMENTO ---
-    st.markdown("### 🔍 Verificar e atender solicitação")
+    # --- PAINEL DE ATENDIMENTO COM GRADE ---
+    st.markdown("### 🔍 Verificar e atender solicitações")
 
     if not solicitacoes_pendentes:
         return
@@ -720,7 +718,7 @@ def pagina_almoxarifado() -> None:
     # Modo de visualização
     modo_visualizacao = st.radio(
         "Modo de visualização",
-        ["Por empresa", "Todas as solicitações"],
+        ["Todas as solicitações", "Por empresa"],
         horizontal=True,
         key="modo_viz_almox",
     )
@@ -740,86 +738,132 @@ def pagina_almoxarifado() -> None:
         st.info("Nenhuma solicitação encontrada para o filtro selecionado.")
         return
 
-    opcoes = {
-        f"{item['protocolo']} — {item['empresa']} — {item['solicitante']}": item["protocolo"]
-        for item in solicitacoes_filtradas
-    }
-    selecao = st.selectbox(
-        "Selecione a solicitação para atender",
-        list(opcoes),
-        key="selecionar_almoxarifado",
-    )
-    solicitacao = localizar_solicitacao(opcoes[selecao])
-    assert solicitacao is not None
+    st.caption(f"**{len(solicitacoes_filtradas)}** solicitação(ões) para atender")
 
-    st.caption(
-        f"Solicitante: **{solicitacao['solicitante']}** | "
-        f"Empresa: **{solicitacao['empresa']}** | "
-        f"Triagem por: {solicitacao.get('triado_por', 'Não registrada')}"
-    )
+    # --- GRADE DE SOLICITAÇÕES COM EXPANDER ---
+    for solicitacao in solicitacoes_filtradas:
+        # Card compacto com resumo
+        itens_resumo = ", ".join(
+            [f"{i['Produto']} (x{i['Quantidade']})" for i in solicitacao["itens"][:3]]
+        )
+        if len(solicitacao["itens"]) > 3:
+            itens_resumo += f" (+{len(solicitacao['itens']) - 3} mais)"
 
-    if solicitacao.get("observacao_triagem"):
-        st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
-
-    st.markdown("#### Marcar disponibilidade dos materiais")
-    st.caption("Informe a quantidade disponível e a situação de cada item.")
-
-    estoque_inicial = pd.DataFrame(
-        [
-            {
-                "Produto": item["Produto"],
-                "Qtd. solicitada": item["Quantidade"],
-                "Qtd. disponível": item["Quantidade"],
-                "Situação": "Disponível",
-            }
-            for item in solicitacao["itens"]
-        ]
-    )
-    disponibilidade = st.data_editor(
-        estoque_inicial,
-        column_config={
-            "Produto": st.column_config.TextColumn(disabled=True),
-            "Qtd. solicitada": st.column_config.NumberColumn(disabled=True),
-            "Qtd. disponível": st.column_config.NumberColumn(min_value=0, step=1),
-            "Situação": st.column_config.SelectboxColumn(
-                "Situação",
-                options=["Disponível", "Parcial", "Indisponível"],
-            ),
-        },
-        hide_index=True,
-        width="stretch",
-        key=f"estoque_{solicitacao['protocolo']}",
-    )
-    observacao = st.text_area(
-        "Observação do almoxarifado (opcional)",
-        key=f"obs_estoque_{solicitacao['protocolo']}",
-        placeholder="Informe detalhes sobre a disponibilidade ou prazo de reposição.",
-    )
-
-    acao, _ = st.columns([1, 2])
-    if acao.button("✅ Confirmar retorno de estoque", type="primary", width="stretch"):
-        solicitacao["estoque"] = disponibilidade.to_dict(orient="records")
-        solicitacao["observacao_almoxarifado"] = observacao.strip()
-        atualizar_status(solicitacao, "Atendido pelo almoxarifado")
-        st.success(f"Disponibilidade registrada para {solicitacao['protocolo']}.")
-
-        itens_html = "<ul>" + "".join(
-            [
-                f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>"
-                for item in disponibilidade.to_dict(orient="records")
-            ]
-        ) + "</ul>"
-        corpo_email = f"""
-        <h3>Retorno do Almoxarifado</h3>
-        <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
-        <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
-        <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
-        <p><strong>Status Final:</strong> Atendido pelo almoxarifado</p>
-        <h4>Itens:</h4>
-        {itens_html}
+        card_html = f"""
+        <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-left:5px solid #F59E0B;border-radius:10px;padding:0.8rem 1rem;margin-bottom:0.5rem;box-shadow:0 2px 8px rgba(15,23,42,.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                <div>
+                    <span style="font-size:.75rem;color:#64748B;font-weight:700;text-transform:uppercase;letter-spacing:.03em;">{escape(solicitacao['protocolo'])}</span>
+                    <div style="font-size:.95rem;color:#0F172A;font-weight:700;margin:.15rem 0;">{escape(solicitacao['empresa'])}</div>
+                    <span style="font-size:.78rem;color:#64748B;">Solicitante: {escape(solicitacao['solicitante'])}</span>
+                    <span style="font-size:.78rem;color:#64748B;margin-left:.8rem;">{itens_resumo}</span>
+                </div>
+                <span class="status-chip" style="background:#F59E0B;">Em análise</span>
+            </div>
+        </div>
         """
-        enviar_email_notificacao(f"Retorno Almoxarifado: {solicitacao['protocolo']}", corpo_email)
-        st.rerun()
+        st.markdown(card_html, unsafe_allow_html=True)
+
+        # Expander para verificar estoque
+        with st.expander("Verificar disponibilidade de estoque", expanded=False):
+            if solicitacao.get("observacao_triagem"):
+                st.info(f"Observação da triagem: {solicitacao['observacao_triagem']}")
+
+            st.markdown("#### Itens solicitados")
+            st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
+
+            st.markdown("#### Marcar disponibilidade de cada item")
+            st.caption("Informe a quantidade disponível e a situação de cada item.")
+
+            estoque_inicial = pd.DataFrame(
+                [
+                    {
+                        "Produto": item["Produto"],
+                        "Qtd. solicitada": item["Quantidade"],
+                        "Qtd. disponível": item["Quantidade"],
+                        "Situação": "Disponível",
+                    }
+                    for item in solicitacao["itens"]
+                ]
+            )
+            disponibilidade = st.data_editor(
+                estoque_inicial,
+                column_config={
+                    "Produto": st.column_config.TextColumn(disabled=True),
+                    "Qtd. solicitada": st.column_config.NumberColumn(disabled=True),
+                    "Qtd. disponível": st.column_config.NumberColumn(min_value=0, step=1),
+                    "Situação": st.column_config.SelectboxColumn(
+                        "Situação",
+                        options=["Disponível", "Parcial", "Indisponível"],
+                    ),
+                },
+                hide_index=True,
+                width="stretch",
+                key=f"estoque_{solicitacao['protocolo']}",
+            )
+            observacao = st.text_area(
+                "Observação do almoxarifado (opcional)",
+                key=f"obs_estoque_{solicitacao['protocolo']}",
+                placeholder="Informe detalhes sobre a disponibilidade ou prazo de reposição.",
+            )
+
+            # Botão de ação
+            acao_col1, acao_col2 = st.columns([1, 1])
+            if acao_col1.button("✅ Confirmar estoque", type="primary", width="stretch", key=f"confirmar_estoque_{solicitacao['protocolo']}"):
+                solicitacao["estoque"] = disponibilidade.to_dict(orient="records")
+                solicitacao["observacao_almoxarifado"] = observacao.strip()
+
+                # Verificar se algum item está indisponível ou parcial
+                tem_indisponivel = any(
+                    item["Situação"] in ("Indisponível", "Parcial")
+                    for item in disponibilidade.to_dict(orient="records")
+                )
+
+                itens_html = "<ul>" + "".join(
+                    [
+                        f"<li>{item['Produto']} - Qtd. solicitada: {item['Qtd. solicitada']} - Qtd. disponível: {item['Qtd. disponível']} ({item['Situação']})</li>"
+                        for item in disponibilidade.to_dict(orient="records")
+                    ]
+                ) + "</ul>"
+
+                if tem_indisponivel:
+                    # Encaminhar automaticamente para compras
+                    novo_status = "Em processo de compra"
+                    solicitacao["destino"] = "Compras"
+                    solicitacao["triado_por"] = st.session_state.usuario_autenticado
+                    atualizar_status(solicitacao, novo_status)
+                    st.success(f"Stock parcial/indisponível em {solicitacao['protocolo']}. Encaminhada automaticamente para Compras.")
+
+                    corpo_email = f"""
+                    <h3>Retorno do Almoxarifado — Encaminhada para Compras</h3>
+                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+                    <p><strong>Status:</strong> Em processo de compra (itens indisponíveis)</p>
+                    <h4>Itens:</h4>
+                    {itens_html}
+                    """
+                    enviar_email_notificacao(f"Almox → Compras: {solicitacao['protocolo']}", corpo_email)
+                else:
+                    # Todos disponíveis, atender pelo almoxarifado
+                    atualizar_status(solicitacao, "Atendido pelo almoxarifado")
+                    st.success(f"Estoque confirmado para {solicitacao['protocolo']}.")
+
+                    corpo_email = f"""
+                    <h3>Retorno do Almoxarifado</h3>
+                    <p><strong>Protocolo:</strong> {solicitacao['protocolo']}</p>
+                    <p><strong>Empresa:</strong> {solicitacao['empresa']}</p>
+                    <p><strong>Solicitante:</strong> {solicitacao['solicitante']}</p>
+                    <p><strong>Status Final:</strong> Atendido pelo almoxarifado</p>
+                    <h4>Itens:</h4>
+                    {itens_html}
+                    """
+                    enviar_email_notificacao(f"Retorno Almoxarifado: {solicitacao['protocolo']}", corpo_email)
+
+                st.rerun()
+
+            if acao_col2.button("⏸️ Deixar pendente", width="stretch", key=f"pendente_{solicitacao['protocolo']}"):
+                st.info(f"{solicitacao['protocolo']} permanecerá em análise.")
 
 
 def pagina_compras() -> None:

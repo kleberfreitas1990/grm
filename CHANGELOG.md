@@ -2,6 +2,21 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.0.3] — 2026-07-21
+
+### Adicionado
+
+- Grade visual de requisições no painel do Almoxarifado com cards e expanders para cada solicitação.
+- Marcação de disponibilidade por item (Disponível / Parcial / Indisponível) em cada solicitação.
+- Encaminhamento automático para Compras quando algum item estiver indisponível ou parcial.
+- Botão "Deixar pendente" para adiar a decisão de atendimento.
+
+### Alterado
+
+- Painel do Almoxarifado reescrito: cards visuais substituem o selectbox anterior.
+
+[1.0.3]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.0.3
+
 ## [1.0.2] — 2026-07-21
 
 ### Adicionado

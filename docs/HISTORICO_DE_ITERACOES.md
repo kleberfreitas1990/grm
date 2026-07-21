@@ -6,6 +6,45 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 023 — Versão 1.0.3 — 21 de julho de 2026
+
+### Objetivo
+
+Corrigir o painel do almoxarifado para exibir a grade de requisições com marcação de estoque por item e encaminhamento automático para compras quando não houver disponibilidade.
+
+### Prompt sanitizado
+
+> Na tela do almoxarifado eles não conseguem ver a grade de requisições e nem selecionar se os itens tem estoque. E quando não tiver estoque já aparecer na tela do suprimentos pra comprar.
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Grade visual | Substituição do selectbox único por cards visuais para cada solicitação pendente, mostrando protocolo, empresa, solicitante e resumo dos itens. |
+| Expander | Cada card possui um expander "Verificar disponibilidade de estoque" com tabela editável de marcação por item. |
+| Marcação de estoque | Tabela com Produto, Qtd. solicitada, Qtd. disponível e Situação (Disponível / Parcial / Indisponível). |
+| Encaminhamento automático | Ao confirmar estoque, se algum item estiver marcado como "Indisponível" ou "Parcial", a solicitação é encaminhada automaticamente para Compras (status "Em processo de compra"), aparecendo imediatamente no painel de suprimentos. |
+| Encaminhamento manual | Botão "Deixar pendente" para adiar a decisão sem alterar o status. |
+| Versionamento | Atualização da versão da aplicação para `1.0.3`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `almox_app.py` | Reescrita completa da função `pagina_almoxarifado()` com grade, expander e encaminhamento automático. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro detalhado da iteração e do prompt. |
+| `CHANGELOG.md` | Resumo da nova versão publicada. |
+
+### Validação executada
+
+Nove testes automatizados aprovados sem erros de sintaxe ou execução.
+
+### Commit
+
+A versão será publicada na ramificação `main` com a tag anotada `v1.0.3`.
+
+---
+
 ## Iteração 022 — Versão 1.0.2 — 21 de julho de 2026
 
 ### Objetivo
