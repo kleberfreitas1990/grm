@@ -22,7 +22,7 @@ import pandas as pd
 import streamlit as st
 
 
-APP_VERSION = "1.3.1"
+APP_VERSION = "1.4.0"
 
 # As senhas são lidas de segredos de implantação ou de variáveis de ambiente.
 # Nenhuma credencial deve ser incluída no repositório.
@@ -453,8 +453,17 @@ def renderizar_grade_acompanhamento(solicitacoes: list[dict]) -> None:
                 st.dataframe(pd.DataFrame(solicitacao["itens"]), hide_index=True, width="stretch")
 
             if solicitacao.get("estoque"):
-                st.markdown("#### Retorno do almoxarifado")
-                st.dataframe(pd.DataFrame(solicitacao["estoque"]), hide_index=True, width="stretch")
+                st.markdown("#### 📦 Conferência do Almoxarifado")
+                df_estoque = pd.DataFrame(solicitacao["estoque"])
+                
+                # Mapear cores para a situação para facilitar a leitura do solicitante
+                def colorir_situacao(val):
+                    cor = "#10B981" if val == "Disponível" else ("#F59E0B" if val == "Parcial" else "#EF4444")
+                    return f'background-color: {cor}; color: white; font-weight: bold; border-radius: 4px; padding: 2px 6px;'
+
+                st.table(df_estoque)
+                if solicitacao.get("observacao_almoxarifado"):
+                    st.info(f"**Obs. Almoxarifado:** {solicitacao['observacao_almoxarifado']}")
             if solicitacao.get("dados_compra"):
                 dados = solicitacao["dados_compra"]
                 st.markdown("#### Dados registrados para compras")
@@ -801,14 +810,19 @@ def pagina_almoxarifado() -> None:
                     st.markdown(f"{qtd_solicitada}")
                 
                 with col4:
+                    # Inicializar valor no session_state para garantir que a edição persista
+                    qtd_key = f"qtd_{solicitacao['protocolo']}_{idx}"
+                    if qtd_key not in st.session_state:
+                        st.session_state[qtd_key] = int(qtd_solicitada) if tem_produto else 0
+                    
                     # Habilita edição de quantidade apenas se o checkbox estiver marcado
                     qtd_disponivel = st.number_input(
                         "Qtd Disp",
                         min_value=0,
                         max_value=int(qtd_solicitada),
-                        value=int(qtd_solicitada) if tem_produto else 0,
+                        value=st.session_state[qtd_key] if tem_produto else 0,
                         disabled=not tem_produto,
-                        key=f"qtd_{solicitacao['protocolo']}_{idx}",
+                        key=qtd_key,
                         label_visibility="collapsed"
                     )
                 
