@@ -6,6 +6,64 @@ Este arquivo é o registro obrigatório das evoluções do repositório. Ao ence
 
 ---
 
+## Iteração 026 — Versão 1.5.0 — 21 de julho de 2026
+
+### Objetivo
+
+Criar uma tela de acompanhamento mais clara para o solicitante, indicando visualmente quantas solicitações estão em andamento, e ampliar o fluxo após a compra para registrar o recebimento no almoxarifado e o envio do produto ao solicitante.
+
+### Prompt sanitizado
+
+> Criar uma tela com o fluxo de solicitações. Na tela do solicitante, exibir uma legenda visual com a quantidade de solicitações em andamento. Depois que Compras concluir a aquisição, o Almoxarifado deve registrar o recebimento do material e, ao enviá-lo ao solicitante, informar quem enviou e os dados do despacho. Manter cada alteração documentada por versão e com o prompt ao final da interação. `[DADO SENSÍVEL OMITIDO]`
+
+### Alterações realizadas
+
+| Categoria | Descrição |
+| --- | --- |
+| Acompanhamento do solicitante | Inclusão de cartões de resumo para solicitações em andamento, estoque, compras, recebimento e envio, acompanhados de legenda visual de cores. |
+| Fluxo | Inclusão dos estados **Em processo de autorização**, **Aguardando recebimento no almoxarifado**, **Aguardando envio ao solicitante** e **Produto enviado ao solicitante**. |
+| Linha do tempo | Cada solicitação passou a apresentar cinco etapas: solicitação, estoque, compras, recebimento e envio. |
+| Histórico | Alterações de status agora armazenam data/hora, responsável e observação em um histórico consultável pelo solicitante. |
+| Almoxarifado | O painel foi dividido em conferência de estoque, recebimento físico de compras e envio ao solicitante. |
+| Recebimento | Incluídos campos para quem recebeu, data/hora, documento de referência e observação. |
+| Envio | Incluídos campos para quem enviou, destinatário, data/hora, modalidade de entrega e observação. |
+| Compras | Compras concluídas agora encaminham a solicitação para **Aguardando recebimento no almoxarifado**. |
+| Persistência | Novos dados de logística e histórico foram persistidos em SQLite e TiDB; a migração de colunas é automática. |
+| TiDB | Corrigidas consultas parametrizadas para uso da sessão SQLAlchemy, garantindo compatibilidade com a conexão configurada. |
+| Testes | Ampliação da cobertura para status logísticos, categorias, histórico de movimentação e acesso atualizado. |
+| Versionamento | Aplicação atualizada para a versão `1.5.0`. |
+
+### Arquivos afetados
+
+| Arquivo | Finalidade |
+| --- | --- |
+| `almox_app.py` | Indicadores visuais, legenda, linha do tempo, novos estados, painéis de recebimento e envio e integração do fluxo de Compras. |
+| `db.py` | Persistência de `dados_logistica` e `historico_status`, migração de esquema e consultas TiDB compatíveis. |
+| `tests/test_almox_app.py` | Cobertura das regras de status e histórico de logística. |
+| `tests/test_acesso_streamlit.py` | Atualização da expectativa de acesso do perfil Compras para o layout sem abas. |
+| `docs/FLUXO_OPERACIONAL_V1.5.0.md` | Especificação funcional do fluxo ampliado. |
+| `docs/VALIDACAO_VISUAL_V1.5.0.md` | Registro da validação visual em prévia local isolada. |
+| `CHANGELOG.md` | Resumo público da versão `1.5.0`. |
+| `docs/HISTORICO_DE_ITERACOES.md` | Registro da versão, do objetivo, do prompt sanitizado e das validações desta interação. |
+
+### Validação executada
+
+| Ambiente | Verificação | Resultado |
+| --- | --- | --- |
+| SQLite isolado | `GRM_USE_SQLITE=1 PYTHONPATH=. pytest -q` | 11 testes aprovados. |
+| Configuração de banco disponível | `PYTHONPATH=. pytest -q` | 11 testes aprovados. |
+| Prévia Streamlit isolada | Tela inicial, jornada do solicitante, indicadores, legenda, linha do tempo e painel do almoxarifado | Aprovado; registros usados na inspeção foram temporários e locais. |
+
+### Observação de escopo
+
+O anexo visual mencionado na solicitação não ficou disponível nesta interação. A implementação adota o fluxo textual informado; quando o anexo for enviado, a composição visual poderá ser ajustada sem alterar as regras de negócio desta versão.
+
+### Commit
+
+A versão será consolidada na ramificação `main` com o commit de entrega e a tag anotada `v1.5.0`.
+
+---
+
 ## Iteração 025 — Versão 1.2.0 — 21 de julho de 2026
 
 ### Objetivo

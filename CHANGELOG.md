@@ -2,6 +2,25 @@
 
 Todas as alterações relevantes deste projeto são registradas neste arquivo. O detalhamento da solicitação e o prompt sanitizado de cada ciclo ficam em [`docs/HISTORICO_DE_ITERACOES.md`](docs/HISTORICO_DE_ITERACOES.md).
 
+## [1.5.0] — 2026-07-21
+
+### Adicionado
+
+- Tela de acompanhamento do solicitante com contadores visuais de solicitações em andamento por estoque, compras, recebimento e envio.
+- Legenda visual de cores, linha do tempo em cinco etapas e histórico de movimentações por solicitação.
+- Novas etapas de fluxo: **Aguardando recebimento no almoxarifado**, **Aguardando envio ao solicitante** e **Produto enviado ao solicitante**.
+- Painel do Almoxarifado dividido em conferência de estoque, recebimento físico de compras e envio de materiais ao solicitante.
+- Campos de logística para registrar responsável, data/hora, documento, destinatário, modalidade de entrega e observações.
+- Documentação funcional do fluxo e registro de validação visual da prévia local.
+
+### Alterado
+
+- `pagina_compras()`: compras concluídas agora seguem para o recebimento físico no almoxarifado, em vez de encerrar o fluxo.
+- `db.py`: persistência ampliada para histórico de status e dados de logística, com migração automática de colunas e consultas TiDB parametrizadas pela sessão SQLAlchemy.
+- Testes atualizados para cobrir os novos estados, categorias e registros de movimentação.
+
+[1.5.0]: https://github.com/kleberfreitas1990/GRM/releases/tag/v1.5.0
+
 ## [1.2.0] — 2026-07-21
 
 ### Adicionado

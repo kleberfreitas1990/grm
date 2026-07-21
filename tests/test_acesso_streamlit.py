@@ -44,7 +44,9 @@ class AcessoSetorialStreamlitTest(unittest.TestCase):
             aplicacao.text_input[0].set_value("Grm@2026")
             aplicacao.button[0].click().run(timeout=10)
             self.assertEqual(len(aplicacao.exception), 0)
-            self.assertEqual([aba.label for aba in aplicacao.tabs], ["Atendimento", "Compras"])
+            self.assertEqual(len(aplicacao.tabs), 0)
+            subcabecalhos = [elemento.value for elemento in aplicacao.subheader]
+            self.assertIn("Painel de compras", subcabecalhos)
 
     def test_almoxarifado_acessa_somente_estoque(self) -> None:
         with patch.dict(os.environ, {"GRM_ALMOXARIFADO_PASSWORD": "Grm@2026"}, clear=False):

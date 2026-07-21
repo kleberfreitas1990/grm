@@ -44,6 +44,8 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
         salvar_solicitacao.assert_called_once_with(solicitacao)
         self.assertEqual(solicitacao["status"], "Em processo de compra")
         self.assertGreater(solicitacao["atualizado_em"], datetime(2020, 1, 1))
+        self.assertEqual(solicitacao["historico_status"][0]["status"], "Em processo de compra")
+        self.assertEqual(solicitacao["historico_status"][0]["responsavel"], "Sistema")
 
     def test_status_previstos_possuem_metadados(self) -> None:
         status_esperados = {
@@ -55,6 +57,32 @@ class RegrasDaAplicacaoTest(unittest.TestCase):
         }
 
         self.assertTrue(status_esperados.issubset(APP.STATUS_META))
+
+    def test_novos_status_do_fluxo_possuem_metadados_e_categorias(self) -> None:
+        status_logisticos = {
+            "Em processo de autorização": "Compras",
+            "Aguardando recebimento no almoxarifado": "Recebimento",
+            "Aguardando envio ao solicitante": "Envio",
+            "Produto enviado ao solicitante": "Concluído",
+        }
+        self.assertTrue(set(status_logisticos).issubset(APP.STATUS_META))
+        for status, categoria in status_logisticos.items():
+            self.assertEqual(APP._categoria_status(status), categoria)
+        self.assertIn("Produto enviado ao solicitante", APP.STATUS_CONCLUIDOS)
+
+    def test_atualizacao_logistica_preserva_responsavel_e_observacao(self) -> None:
+        solicitacao = {"status": "Aguardando envio ao solicitante", "atualizado_em": datetime(2020, 1, 1)}
+        with patch.object(APP.db, "salvar_solicitacao"):
+            APP.atualizar_status(
+                solicitacao,
+                "Produto enviado ao solicitante",
+                "João do Almoxarifado",
+                "Entrega interna registrada.",
+            )
+        movimento = solicitacao["historico_status"][0]
+        self.assertEqual(movimento["status"], "Produto enviado ao solicitante")
+        self.assertEqual(movimento["responsavel"], "João do Almoxarifado")
+        self.assertEqual(movimento["observacao"], "Entrega interna registrada.")
 
     def test_usuarios_setoriais_possuem_permissoes_separadas(self) -> None:
         self.assertEqual(set(APP.USUARIOS_CONFIGURADOS), {"compras", "almoxarifado"})
