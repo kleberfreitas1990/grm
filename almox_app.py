@@ -1192,7 +1192,13 @@ def pagina_compras() -> None:
 
 def main() -> None:
     configurar_pagina()
-    inicializar_estado()
+    
+    try:
+        inicializar_estado()
+    except Exception as e:
+        st.error(f"Erro ao conectar com o banco de dados: {e}")
+        st.info("Por favor, atualize a página em alguns instantes.")
+        return
 
     st.session_state.setdefault("perfil", "")
 

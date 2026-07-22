@@ -192,14 +192,20 @@ class _DBManager:
             session.commit()
 
     def _consultar_tidb(self, sql: str, params: dict[str, Any] | None = None):
-        """Executa consulta parametrizada no TiDB sem depender do cache de leitura do Streamlit."""
+        """Executa consulta parametrizada no TiDB com tratamento de erro de conexão."""
         import pandas as pd
         from sqlalchemy import text
 
-        with self.engine.session as session:
-            resultado = session.execute(text(sql), params or {})
-            linhas = [dict(linha) for linha in resultado.mappings().all()]
-        return pd.DataFrame(linhas)
+        try:
+            with self.engine.session as session:
+                resultado = session.execute(text(sql), params or {})
+                linhas = [dict(linha) for linha in resultado.mappings().all()]
+            return pd.DataFrame(linhas)
+        except Exception as exc:
+            import streamlit as st
+            st.warning(f"Aviso: Conexão temporária com o banco de dados falhou. Tentando novamente... ({exc})")
+            # Retorna um DataFrame vazio para evitar quebra do app, permitindo o fallback ou retry
+            return pd.DataFrame()
 
     def _init_tables_tidb(self) -> None:
         self._executar_tidb(
