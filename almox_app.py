@@ -75,7 +75,7 @@ def enviar_email_notificacao(assunto: str, corpo: str) -> bool:
     smtp_host, smtp_port, smtp_user, smtp_password, notification_email = _obter_config_smtp()
 
     if not smtp_user or not smtp_password:
-        st.warning("Credenciais SMTP não configuradas. O e-mail não será enviado.")
+        # Silenciar aviso automático para não poluir a interface
         return False
 
     try:
